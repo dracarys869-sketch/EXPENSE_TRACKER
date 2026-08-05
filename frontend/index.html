@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expense Tracker System</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#6366f1', 600: '#4f46e5' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React & Babel CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    html { scroll-behavior: smooth; font-size: 17px; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 antialiased min-h-screen text-base">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const API_BASE = 'http://127.0.0.1:5000/api';
+
+    // Helper for API calls with token
+    const apiCall = async (endpoint, method = 'GET', data = null) => {
+      const token = localStorage.getItem('access_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method,
+          headers,
+          body: data ? JSON.stringify(data) : null,
+        });
+        const resData = await res.json();
+        if (!res.ok) throw new Error(resData.message || 'Request failed');
+        return resData;
+      } catch (err) {
+        throw err;
+      }
+    };
+
+    function App() {
+      const [token, setToken] = useState(() => localStorage.getItem('access_token'));
+      const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
+      const [view, setView] = useState(token ? 'app' : 'login');
+
+      // Auth state
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [fullName, setFullName] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
+      const [authError, setAuthError] = useState('');
+
+      // Dashboard Data state
+      const [summary, setSummary] = useState({ current_balance: 0, total_income: 0, total_expenses: 0, total_transactions: 0 });
+      const [transactions, setTransactions] = useState([]);
+      const [categories, setCategories] = useState([]);
+      const [monthlyData, setMonthlyData] = useState([]);
+      const [categoryReport, setCategoryReport] = useState([]);
+
+      // Filter & Modal State
+      const [searchQuery, setSearchQuery] = useState('');
+      const [typeFilter, setTypeFilter] = useState('');
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [newCatName, setNewCatName] = useState('');
+      const [newCatType, setNewCatType] = useState('Expense');
+
+      // Add Transaction Form
+      const [txType, setTxType] = useState('Expense');
+      const [txAmount, setTxAmount] = useState('');
+      const [txDesc, setTxDesc] = useState('');
+      const [txCat, setTxCat] = useState('');
+      const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
+
+      // Advanced Features State
+      const [budgets, setBudgets] = useState([]);
+      const [recurringItems, setRecurringItems] = useState([]);
+      const [savingsGoals, setSavingsGoals] = useState([]);
+      const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+      const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
+      const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false);
+
+      // Forms
+      const [budgetCap, setBudgetCap] = useState('');
+      const [budgetCat, setBudgetCat] = useState('');
+      const [recTitle, setRecTitle] = useState('');
+      const [recAmount, setRecAmount] = useState('');
+      const [recCat, setRecCat] = useState('');
+      const [recFreq, setRecFreq] = useState('Monthly');
+      const [recNextDue, setRecNextDue] = useState(new Date().toISOString().split('T')[0]);
+      const [savGoalName, setSavGoalName] = useState('');
+      const [savTarget, setSavTarget] = useState('');
+      const [savInit, setSavInit] = useState('');
+      const [depositGoalId, setDepositGoalId] = useState(null);
+      const [depositGoalName, setDepositGoalName] = useState('');
+      const [depositAmount, setDepositAmount] = useState('');
+      const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
+      const roundPct = (num) => Math.round(num * 10) / 10;
+
+      useEffect(() => {
+        if (token) {
+          loadAllData();
+        }
+      }, [token, searchQuery, typeFilter]);
+
+      const loadAllData = async () => {
+        try {
+          let url = '/transactions?per_page=50';
+          if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+          if (typeFilter) url += `&type=${typeFilter}`;
+
+          const data = await apiCall(url);
+          setTransactions(data.transactions);
+          setSummary(data.summary);
+
+          const cats = await apiCall('/categories');
+          setCategories(cats);
+
+          const mData = await apiCall('/reports/monthly');
+          setMonthlyData(mData);
+
+          const cReport = await apiCall('/reports/category?type=Expense');
+          setCategoryReport(cReport);
+
+          const bdgs = await apiCall('/budgets');
+          setBudgets(bdgs);
+
+          const recs = await apiCall('/recurring');
+          setRecurringItems(recs);
+
+          const savs = await apiCall('/savings');
+          setSavingsGoals(savs);
+        } catch (err) {
+          if (err.message.includes('401') || err.message.includes('Token')) logout();
+        }
+      };
+
+      const handleAddBudget = async (e) => {
+        e.preventDefault();
+        try {
+          await apiCall('/budgets', 'POST', {
+            category_id: budgetCat ? parseInt(budgetCat) : null,
+            monthly_limit: parseFloat(budgetCap)
+          });
+          setIsBudgetModalOpen(false); setBudgetCap(''); setBudgetCat('');
+          loadAllData();
+        } catch(err) { alert(err.message); }
+      };
+
+      const handleDeleteBudget = async (id) => {
+        if (!confirm('Remove budget cap?')) return;
+        try { await apiCall(`/budgets/${id}`, 'DELETE'); loadAllData(); }
+        catch(err) { alert(err.message); }
+      };
+
+      const handleAddRecurring = async (e) => {
+        e.preventDefault();
+        try {
+          await apiCall('/recurring', 'POST', {
+            title: recTitle,
+            amount: parseFloat(recAmount),
+            category_id: parseInt(recCat),
+            frequency: recFreq,
+            next_due_date: recNextDue
+          });
+          setIsRecurringModalOpen(false); setRecTitle(''); setRecAmount('');
+          loadAllData();
+        } catch(err) { alert(err.message); }
+      };
+
+      const handlePayRecurring = async (id) => {
+        try {
+          const res = await apiCall(`/recurring/${id}/pay`, 'POST');
+          alert(res.message);
+          loadAllData();
+        } catch(err) { alert(err.message); }
+      };
+
+      const handleDeleteRecurring = async (id) => {
+        if (!confirm('Delete recurring bill?')) return;
+        try { await apiCall(`/recurring/${id}`, 'DELETE'); loadAllData(); }
+        catch(err) { alert(err.message); }
+      };
+
+      const handleAddSavings = async (e) => {
+        e.preventDefault();
+        try {
+          await apiCall('/savings', 'POST', {
+            goal_name: savGoalName,
+            target_amount: parseFloat(savTarget),
+            current_amount: savInit ? parseFloat(savInit) : 0
+          });
+          setIsSavingsModalOpen(false); setSavGoalName(''); setSavTarget(''); setSavInit('');
+          loadAllData();
+        } catch(err) { alert(err.message); }
+      };
+
+      const handleDepositSavings = (id, goalName) => {
+        setDepositGoalId(id);
+        setDepositGoalName(goalName);
+        setDepositAmount('');
+        setIsDepositModalOpen(true);
+      };
+
+      const handleSubmitDeposit = async (e) => {
+        e.preventDefault();
+        const amt = parseFloat(depositAmount);
+        if (!amt || amt <= 0) return;
+        try {
+          await apiCall(`/savings/${depositGoalId}/deposit`, 'POST', { amount: amt });
+          setIsDepositModalOpen(false);
+          setDepositAmount('');
+          loadAllData();
+        } catch(err) { alert(err.message); }
+      };
+
+      const handleDeleteSavings = async (id) => {
+        if (!confirm('Delete savings goal?')) return;
+        try { await apiCall(`/savings/${id}`, 'DELETE'); loadAllData(); }
+        catch(err) { alert(err.message); }
+      };
+
+      // Profile & OTP Form
+      const [profName, setProfName] = useState(user?.full_name || '');
+      const [profEmail, setProfEmail] = useState(user?.email || '');
+      const [currPass, setCurrPass] = useState('');
+      const [newPass, setNewPass] = useState('');
+      const [confirmNewPass, setConfirmNewPass] = useState('');
+      const [profMsg, setProfMsg] = useState('');
+      const [passMsg, setPassMsg] = useState('');
+      const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+      
+      // OTP states
+      const [otpSent, setOtpSent] = useState(false);
+      const [otpCode, setOtpCode] = useState('');
+
+      const handleSendOtp = async (e) => {
+        e.preventDefault();
+        setPassMsg('');
+        try {
+          const res = await apiCall('/send-otp', 'POST', { email });
+          setOtpSent(true);
+          setPassMsg(res.message);
+        } catch (err) {
+          setPassMsg(err.message || 'Failed to send OTP');
+        }
+      };
+
+      const handleVerifyOtpAndChangePassword = async (e) => {
+        e.preventDefault();
+        setPassMsg('');
+        if (newPass !== confirmNewPass) {
+          setPassMsg('New passwords do not match');
+          return;
+        }
+        try {
+          const res = await apiCall('/reset-password-otp', 'POST', {
+            email,
+            otp: otpCode,
+            new_password: newPass
+          });
+          setPassMsg(res.message);
+          setOtpCode(''); setNewPass(''); setConfirmNewPass('');
+          setTimeout(() => {
+            setIsPassModalOpen(false);
+            setOtpSent(false);
+            setPassMsg('');
+          }, 2000);
+        } catch (err) {
+          setPassMsg(err.message || 'Failed to reset password');
+        }
+      };
+
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      // Chart ref
+
+
+      // Render Chart.js
+      useEffect(() => {
+        if (view === 'app' && chartRef.current && monthlyData.length > 0) {
+          if (chartInstance.current) chartInstance.current.destroy();
+
+          const ctx = chartRef.current.getContext('2d');
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          chartInstance.current = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: months,
+              datasets: [
+                { label: 'Income', data: monthlyData.map(d => d.income), backgroundColor: '#10b981', borderRadius: 6 },
+                { label: 'Expense', data: monthlyData.map(d => d.expense), backgroundColor: '#f43f5e', borderRadius: 6 }
+              ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
+      }, [monthlyData, view]);
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setAuthError('');
+        try {
+          const res = await apiCall('/login', 'POST', { email, password });
+          localStorage.setItem('access_token', res.access_token);
+          localStorage.setItem('user', JSON.stringify(res.user));
+          setToken(res.access_token);
+          setUser(res.user);
+          setProfName(res.user.full_name);
+          setProfEmail(res.user.email);
+          setView('app');
+        } catch (err) {
+          setAuthError(err.message);
+        }
+      };
+
+      const handleRegister = async (e) => {
+        e.preventDefault();
+        setAuthError('');
+        if (password !== confirmPassword) return setAuthError('Passwords do not match');
+        try {
+          const res = await apiCall('/register', 'POST', { full_name: fullName, email, password, confirm_password: confirmPassword });
+          localStorage.setItem('access_token', res.access_token);
+          localStorage.setItem('user', JSON.stringify(res.user));
+          setToken(res.access_token);
+          setUser(res.user);
+          setProfName(res.user.full_name);
+          setProfEmail(res.user.email);
+          setView('app');
+        } catch (err) {
+          setAuthError(err.message);
+        }
+      };
+
+      const logout = () => {
+        localStorage.clear();
+        setToken(null);
+        setUser(null);
+        setView('login');
+      };
+
+      const handleAddTx = async (e) => {
+        e.preventDefault();
+        try {
+          await apiCall('/transactions', 'POST', {
+            type: txType,
+            amount: parseFloat(txAmount),
+            description: txDesc,
+            category_id: parseInt(txCat),
+            transaction_date: txDate
+          });
+          setIsModalOpen(false);
+          setTxAmount(''); setTxDesc('');
+          loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
+      const handleDeleteTx = async (id) => {
+        if (!confirm('Delete this transaction?')) return;
+        try {
+          await apiCall(`/transactions/${id}`, 'DELETE');
+          loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
+      const handleAddCat = async (e) => {
+        e.preventDefault();
+        if (!newCatName.trim()) return;
+        try {
+          await apiCall('/categories', 'POST', { category_name: newCatName.trim(), type: newCatType });
+          setNewCatName('');
+          loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
+      const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        setProfMsg('');
+        try {
+          const payload = { full_name: profName, email: profEmail };
+          const res = await apiCall('/profile', 'PUT', payload);
+          localStorage.setItem('user', JSON.stringify(res.user));
+          setUser(res.user);
+          setProfMsg('Profile updated successfully!');
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+
+      const handleChangePasswordSubmit = async (e) => {
+        e.preventDefault();
+        setPassMsg('');
+        if (newPass !== confirmNewPass) {
+          setPassMsg('New passwords do not match');
+          return;
+        }
+        try {
+          const payload = { 
+            full_name: profName, 
+            email: profEmail, 
+            current_password: currPass, 
+            new_password: newPass 
+          };
+          await apiCall('/profile', 'PUT', payload);
+          setPassMsg('Password updated successfully!');
+          setCurrPass(''); setNewPass(''); setConfirmNewPass('');
+          setTimeout(() => {
+            setIsPassModalOpen(false);
+            setPassMsg('');
+          }, 1500);
+        } catch (err) {
+          setPassMsg(err.message || 'Failed to update password');
+        }
+      };
+
+      const handleLoginResetPassword = async (e) => {
+        e.preventDefault();
+        setPassMsg('');
+        if (newPass !== confirmNewPass) {
+          setPassMsg('New passwords do not match');
+          return;
+        }
+        try {
+          const res = await apiCall('/login', 'POST', { email, password: currPass });
+          const userToken = res.access_token;
+          
+          const updateRes = await fetch(`${API_BASE}/profile`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`
+            },
+            body: JSON.stringify({
+              full_name: res.user.full_name,
+              email: res.user.email,
+              current_password: currPass,
+              new_password: newPass
+            })
+          });
+          const updateData = await updateRes.json();
+          if (!updateRes.ok) throw new Error(updateData.message || 'Password update failed');
+          
+          setPassMsg('Password updated successfully! You can now log in.');
+          setCurrPass(''); setNewPass(''); setConfirmNewPass('');
+          setTimeout(() => {
+            setIsPassModalOpen(false);
+            setPassMsg('');
+          }, 1500);
+        } catch (err) {
+          setPassMsg(err.message || 'Failed to update password');
+        }
+      };
+
+      // Unauthenticated views
+      if (!token && view !== 'register') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
+            <div className="max-w-lg w-full bg-white dark:bg-gray-800 p-10 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">Sign In</h2>
+                <p className="text-base text-gray-500 mt-1">Access your single-page expense tracker</p>
+              </div>
+
+              {authError && <div className="p-4 mb-5 rounded-xl bg-rose-50 text-rose-600 text-base font-semibold">{authError}</div>}
+
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1.5">Email</label>
+                  <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full px-4 py-3.5 text-base rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-sm font-bold text-gray-600">Password</label>
+                    <button 
+                      type="button" 
+                      onClick={() => { setPassMsg(''); setIsPassModalOpen(true); }}
+                      className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      Forgot / Change Password?
+                    </button>
+                  </div>
+                  <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full px-4 py-3.5 text-base rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <button type="submit" className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg shadow-indigo-500/30">Sign In</button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button type="button" onClick={() => { setAuthError(''); setView('register'); }} className="text-base font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Don't have an account? Register</button>
+              </div>
+
+              {/* Change Password Modal with OTP on Login Screen */}
+              {isPassModalOpen && (
+                <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                  <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl max-w-lg w-full shadow-2xl space-y-5">
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-gray-700">
+                      <h3 className="font-extrabold text-xl text-gray-900 dark:text-white">🔑 Change Password with OTP</h3>
+                      <button onClick={() => { setIsPassModalOpen(false); setOtpSent(false); setOtpCode(''); }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                    </div>
+                    
+                    {passMsg && <div className={`p-4 rounded-xl text-sm font-bold ${passMsg.includes('success') || passMsg.includes('OTP sent') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{passMsg}</div>}
+                    
+                    {!otpSent ? (
+                      /* Step 1: Send OTP */
+                      <form onSubmit={handleSendOtp} className="space-y-5">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-600 mb-1.5">Account Email</label>
+                          <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full px-4 py-3 text-base rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none" placeholder="Enter your registered email" />
+                        </div>
+                        <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-base shadow-md">
+                          📲 Send OTP Code
+                        </button>
+                      </form>
+                    ) : (
+                      /* Step 2: Verify OTP & Change Password */
+                      <form onSubmit={handleVerifyOtpAndChangePassword} className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-600 mb-1.5">Enter 6-Digit OTP Code</label>
+                          <input type="text" required maxLength="6" value={otpCode} onChange={e=>setOtpCode(e.target.value)} className="w-full px-4 py-3 rounded-xl border text-center tracking-widest text-2xl font-mono dark:bg-gray-700 dark:border-gray-600 outline-none" placeholder="123456" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-600 mb-1.5">New Password</label>
+                          <input type="password" required value={newPass} onChange={e=>setNewPass(e.target.value)} className="w-full px-4 py-3 text-base rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none" placeholder="At least 6 characters" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-600 mb-1.5">Confirm New Password</label>
+                          <input type="password" required value={confirmNewPass} onChange={e=>setConfirmNewPass(e.target.value)} className="w-full px-4 py-3 text-base rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none" placeholder="Confirm new password" />
+                        </div>
+                        <div className="flex space-x-3 pt-3">
+                          <button type="button" onClick={() => setOtpSent(false)} className="w-1/3 py-3 border rounded-xl font-bold text-base text-gray-600 dark:text-gray-300">Back</button>
+                          <button type="submit" className="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-base shadow-sm">Submit New Password</button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      if (view === 'register') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
+            <div className="max-w-md w-full bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Account</h2>
+                <p className="text-sm text-gray-500">Get started today</p>
+              </div>
+
+              {authError && <div className="p-3 mb-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-medium">{authError}</div>}
+
+              <form onSubmit={handleRegister} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Full Name</label>
+                  <input type="text" required value={fullName} onChange={e=>setFullName(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Email</label>
+                  <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Password</label>
+                  <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password</label>
+                  <input type="password" required value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none" />
+                </div>
+                <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 mt-4">Register</button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button type="button" onClick={() => { setAuthError(''); setView('login'); }} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">Already have an account? Sign in</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Single Page Scrollable Dashboard layout
+      return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+          {/* Sticky Navigation Header */}
+          <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
+              {/* Brand */}
+              <span className="font-extrabold text-base text-indigo-600 dark:text-indigo-400 shrink-0 tracking-tight">
+                ExpenseTracker
+              </span>
+
+              {/* Nav Links — centered */}
+              <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
+                {[
+                  ['Overview', '#summary-section'],
+                  ['Budgets', '#budgets-section'],
+                  ['Recurring', '#recurring-section'],
+                  ['Savings Goals', '#savings-section'],
+                  ['Analytics', '#charts-section'],
+                  ['Transactions', '#transactions-section'],
+                  ['Profile', '#profile-section'],
+                ].map(([label, href]) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="px-3 py-1.5 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+
+              {/* Right Actions */}
+              <div className="flex items-center gap-3 shrink-0">
+                {/* Email Digest Button */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await apiCall('/notifications/send-digest', 'POST');
+                      alert(res.message);
+                    } catch(err) { alert(err.message); }
+                  }}
+                  className="px-3 py-2 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-bold text-xs rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
+                  title="Send Monthly Financial Summary to your Email"
+                >
+                  📧 Email Digest
+                </button>
+                <span className="text-xs text-gray-500 dark:text-gray-400 hidden lg:inline">
+                  Hi, <span className="font-semibold text-gray-700 dark:text-gray-200">{user?.full_name?.split(' ')[0]}</span>
+                </span>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-lg shadow-sm transition-colors"
+                >
+                  + Add
+                </button>
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-rose-600 dark:text-rose-400 font-semibold text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Scrollable Main Content Container */}
+          <main className="max-w-7xl mx-auto px-6 md:px-8 py-8 space-y-12">
+
+            {/* Section 1: Overview Summary Cards */}
+            <section id="summary-section" className="space-y-4 pt-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome back, {user?.full_name?.split(' ')[0]} 👋</h1>
+                  <p className="text-sm text-gray-500">Live summary of your current financial state</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Current Balance</span>
+                  <div className="text-2xl font-extrabold mt-2 text-indigo-600">₱{summary.current_balance?.toFixed(2)}</div>
+                </div>
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Total Income</span>
+                  <div className="text-2xl font-extrabold mt-2 text-emerald-600">₱{summary.total_income?.toFixed(2)}</div>
+                </div>
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Total Expenses</span>
+                  <div className="text-2xl font-extrabold mt-2 text-rose-600">₱{summary.total_expenses?.toFixed(2)}</div>
+                </div>
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Total Transactions</span>
+                  <div className="text-2xl font-extrabold mt-2">{summary.total_transactions}</div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section: Monthly Budgets & Spending Limits */}
+            <section id="budgets-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">🎯 Monthly Budgets & Spending Caps</h2>
+                  <p className="text-xs text-gray-500">Track and limit your monthly expenses per category</p>
+                </div>
+                <button onClick={() => setIsBudgetModalOpen(true)} className="px-3.5 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-indigo-700">
+                  + Set Budget Cap
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {budgets.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-sm text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-dashed">
+                    No budget limits set yet. Click "+ Set Budget Cap" to create one!
+                  </div>
+                ) : (
+                  budgets.map(b => (
+                    <div key={b.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{b.category_name}</span>
+                        <button onClick={() => handleDeleteBudget(b.id)} className="text-xs text-rose-500 hover:underline">Remove</button>
+                      </div>
+                      <div className="flex justify-between items-baseline text-xs text-gray-500">
+                        <span>Spent: <strong className="text-gray-900 dark:text-white">₱{b.spent_amount?.toFixed(2)}</strong></span>
+                        <span>Cap: <strong>₱{b.monthly_limit?.toFixed(2)}</strong></span>
+                      </div>
+                      <div className="w-full bg-gray-100 dark:bg-gray-700 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${b.percentage_used > 100 ? 'bg-rose-600' : b.percentage_used > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(b.percentage_used, 100)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className={b.percentage_used > 100 ? 'text-rose-600' : b.percentage_used > 80 ? 'text-amber-500' : 'text-emerald-600'}>
+                          {b.percentage_used}% used
+                        </span>
+                        {b.percentage_used > 100 && <span className="text-rose-600 font-extrabold">⚠️ Over Budget!</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            {/* Section: Recurring Bills & Subscriptions */}
+            <section id="recurring-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">📅 Recurring Bills & Subscriptions</h2>
+                  <p className="text-xs text-gray-500">Manage fixed recurring expenses (Netflix, Internet, Rent)</p>
+                </div>
+                <button onClick={() => setIsRecurringModalOpen(true)} className="px-3.5 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-indigo-700">
+                  + Add Recurring Bill
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recurringItems.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-sm text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-dashed">
+                    No recurring bills added yet.
+                  </div>
+                ) : (
+                  recurringItems.map(item => (
+                    <div key={item.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-base text-gray-900 dark:text-white">{item.title}</h3>
+                          <span className="text-xs px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold rounded-lg">{item.frequency}</span>
+                        </div>
+                        <div className="text-xl font-extrabold text-gray-900 dark:text-white mt-1">₱{item.amount?.toFixed(2)}</div>
+                        <p className="text-xs text-gray-400 mt-1">Next due: <strong className="text-gray-600 dark:text-gray-300">{item.next_due_date}</strong></p>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <button onClick={() => handlePayRecurring(item.id)} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm">
+                          ⚡ Process Bill
+                        </button>
+                        <button onClick={() => handleDeleteRecurring(item.id)} className="px-3 py-2 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl hover:bg-rose-100">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            {/* Section: Savings Goals & Progress */}
+            <section id="savings-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">💰 Savings Goals & Targets</h2>
+                  <p className="text-xs text-gray-500">Track progress toward your dream purchases and emergency funds</p>
+                </div>
+                <button onClick={() => setIsSavingsModalOpen(true)} className="px-3.5 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-emerald-700">
+                  + Create Savings Goal
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {savingsGoals.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-sm text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-dashed">
+                    No savings goals created yet.
+                  </div>
+                ) : (
+                  savingsGoals.map(g => {
+                    const pct = Math.min(roundPct((g.current_amount / g.target_amount) * 100), 100);
+                    return (
+                      <div key={g.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-base text-gray-900 dark:text-white">{g.goal_name}</h3>
+                          <button onClick={() => handleDeleteSavings(g.id)} className="text-xs text-rose-500 hover:underline">Delete</button>
+                        </div>
+                        <div className="flex justify-between items-baseline text-xs text-gray-500">
+                          <span>Saved: <strong className="text-emerald-600 text-base">₱{g.current_amount?.toFixed(2)}</strong></span>
+                          <span>Target: <strong>₱{g.target_amount?.toFixed(2)}</strong></span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-2.5 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-emerald-600">{pct}% Saved</span>
+                          <button onClick={() => handleDepositSavings(g.id, g.goal_name)} className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-lg hover:bg-emerald-100">
+                            + Deposit
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            {/* Section 2: Analytics & Reports */}
+            <section id="charts-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Financial Analytics</h2>
+                <div className="flex space-x-2">
+                  <button onClick={() => window.open(`${API_BASE}/reports/export/csv`, '_blank')} className="px-3 py-1.5 bg-white border border-gray-200 text-xs font-bold rounded-xl hover:bg-gray-50">Export CSV</button>
+                  <button onClick={() => window.open(`${API_BASE}/reports/export/pdf`, '_blank')} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm">Export PDF</button>
+                </div>
+              </div>
+              <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-500 mb-4">Monthly Income vs Expenses</h3>
+                <div className="h-72">
+                  <canvas ref={chartRef}></canvas>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 3: Filterable Transactions */}
+            <section id="transactions-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Transactions History</h2>
+                
+                {/* Filters */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search transactions..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none"
+                  />
+                  <select
+                    value={typeFilter}
+                    onChange={e => setTypeFilter(e.target.value)}
+                    className="px-3 py-1.5 text-xs rounded-xl border dark:bg-gray-700 dark:border-gray-600 outline-none"
+                  >
+                    <option value="">All Types</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                {transactions.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400">No matching transactions found.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-400 uppercase">
+                          <th className="pb-3">Description</th>
+                          <th className="pb-3">Category</th>
+                          <th className="pb-3">Date</th>
+                          <th className="pb-3 text-right">Amount</th>
+                          <th className="pb-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50 text-sm">
+                        {transactions.map(t => (
+                          <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td className="py-3 font-medium">{t.description}</td>
+                            <td className="py-3 text-gray-500">{t.category_name}</td>
+                            <td className="py-3 text-xs text-gray-400">{t.transaction_date}</td>
+                            <td className={`py-3 text-right font-bold ${t.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {t.type === 'Income' ? '+' : '-'}₱{t.amount?.toFixed(2)}
+                            </td>
+                            <td className="py-3 text-center">
+                              <button onClick={() => handleDeleteTx(t.id)} className="text-xs text-rose-500 font-semibold hover:underline">Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Section 4: Categories Management */}
+            <section id="categories-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Categories Management</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Form to add category */}
+                <div className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <h3 className="font-bold text-sm mb-3">Add Custom Category</h3>
+                  <form onSubmit={handleAddCat} className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Type</label>
+                      <select value={newCatType} onChange={e=>setNewCatType(e.target.value)} className="w-full px-3 py-2 text-xs rounded-xl border dark:bg-gray-700 dark:border-gray-600">
+                        <option value="Expense">Expense</option>
+                        <option value="Income">Income</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Category Name</label>
+                      <input type="text" required value={newCatName} onChange={e=>setNewCatName(e.target.value)} placeholder="e.g. Pet Care" className="w-full px-3 py-2 text-xs rounded-xl border dark:bg-gray-700 dark:border-gray-600" />
+                    </div>
+                    <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl">Add Category</button>
+                  </form>
+                </div>
+
+                {/* Categories List */}
+                <div className="md:col-span-2 p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <h3 className="font-bold text-sm mb-3">Active Categories</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map(c => (
+                      <span key={c.id} className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${c.type === 'Income' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                        {c.category_name} ({c.type})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 5: Monthly Budgets */}
+            <section id="budgets-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Budgets</h2>
+                <button onClick={() => setIsBudgetModalOpen(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors">+ Add Budget</button>
+              </div>
+              {budgets.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">No budget caps set. Add one to track spending limits.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {budgets.map(b => {
+                    const pct = Math.min(100, roundPct(b.spent_pct || 0));
+                    const color = pct >= 90 ? 'bg-rose-500' : pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500';
+                    return (
+                      <div key={b.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="font-bold text-sm text-gray-800 dark:text-white">{b.category_name || 'Overall'}</p>
+                            <p className="text-xs text-gray-400">₱{(b.spent || 0).toFixed(2)} / ₱{(b.monthly_limit || 0).toFixed(2)}</p>
+                          </div>
+                          <button onClick={() => handleDeleteBudget(b.id)} className="text-xs text-rose-400 hover:text-rose-600 font-semibold">Remove</button>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                          <div className={`${color} h-2.5 rounded-full transition-all`} style={{width: `${pct}%`}}></div>
+                        </div>
+                        <p className={`text-xs mt-1 font-semibold ${pct >= 90 ? 'text-rose-500' : pct >= 70 ? 'text-amber-500' : 'text-emerald-500'}`}>{pct}% used</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Section 6: Recurring Bills */}
+            <section id="recurring-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recurring Bills & Subscriptions</h2>
+                <button onClick={() => setIsRecurringModalOpen(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors">+ Add Bill</button>
+              </div>
+              {recurringItems.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">No recurring bills tracked. Add subscriptions or regular expenses.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {recurringItems.map(r => (
+                    <div key={r.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center gap-4">
+                      <div>
+                        <p className="font-bold text-sm text-gray-800 dark:text-white">{r.title}</p>
+                        <p className="text-xs text-gray-400">{r.frequency} · Due: {r.next_due_date}</p>
+                        <p className="text-sm font-bold text-rose-500 mt-1">₱{(r.amount || 0).toFixed(2)}</p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button onClick={() => handlePayRecurring(r.id)} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-colors">Pay Now</button>
+                        <button onClick={() => handleDeleteRecurring(r.id)} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-rose-50 text-rose-500 text-xs font-bold rounded-lg transition-colors">Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Section 7: Savings Goals */}
+            <section id="savings-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Savings Goals</h2>
+                <button onClick={() => setIsSavingsModalOpen(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors">+ New Goal</button>
+              </div>
+              {savingsGoals.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">No savings goals yet. Start one to track your progress!</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {savingsGoals.map(g => {
+                    const pct = Math.min(100, roundPct(g.target_amount > 0 ? (g.current_amount / g.target_amount) * 100 : 0));
+                    return (
+                      <div key={g.id} className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-sm text-gray-800 dark:text-white">{g.goal_name}</p>
+                            <p className="text-xs text-gray-400">₱{(g.current_amount || 0).toFixed(2)} of ₱{(g.target_amount || 0).toFixed(2)}</p>
+                          </div>
+                          <button onClick={() => handleDeleteSavings(g.id)} className="text-xs text-rose-400 hover:text-rose-600 font-semibold">Delete</button>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 mb-1">
+                          <div className="bg-indigo-500 h-2.5 rounded-full transition-all" style={{width: `${pct}%`}}></div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs font-semibold text-indigo-500">{pct}% saved</p>
+                          <button onClick={() => handleDepositSavings(g.id)} className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 text-xs font-bold rounded-lg hover:bg-indigo-100 transition-colors">+ Deposit</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Section 8: Profile & Settings */}
+            <section id="profile-section" className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700 pb-12">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account & Profile Settings</h2>
+
+              <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm max-w-2xl">
+                {profMsg && <div className="p-3 mb-4 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-bold">{profMsg}</div>}
+                
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
+                    <input type="text" required value={profName} onChange={e=>setProfName(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Email Address</label>
+                    <input type="email" required value={profEmail} onChange={e=>setProfEmail(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 text-sm" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <button type="submit" className="py-2.5 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors">
+                      Save Profile
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsPassModalOpen(true)}
+                      className="py-2.5 px-5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                    >
+                      🔒 Change Password
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </section>
+          </main>
+
+          {/* Change Password Modal */}
+          {isPassModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">🔒 Change Password</h3>
+                  <button onClick={() => setIsPassModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                </div>
+                {passMsg && <div className={`p-3 rounded-xl text-xs font-bold ${passMsg.includes('success') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>{passMsg}</div>}
+                <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Current Password</label>
+                    <input type="password" required value={currPass} onChange={e=>setCurrPass(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 text-sm outline-none" placeholder="Enter current password" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">New Password</label>
+                    <input type="password" required value={newPass} onChange={e=>setNewPass(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 text-sm outline-none" placeholder="Enter new password" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Confirm New Password</label>
+                    <input type="password" required value={confirmNewPass} onChange={e=>setConfirmNewPass(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border dark:bg-gray-700 dark:border-gray-600 text-sm outline-none" placeholder="Confirm new password" />
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsPassModalOpen(false)} className="w-1/2 py-2.5 border rounded-xl font-bold text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-sm shadow-sm">Update Password</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Add Transaction Modal */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-md w-full shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-lg">Add Transaction</h3>
+                  <button onClick={() => setIsModalOpen(false)}>✕</button>
+                </div>
+                <form onSubmit={handleAddTx} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                    <button type="button" onClick={() => setTxType('Expense')} className={`py-2 text-xs font-bold rounded-lg ${txType === 'Expense' ? 'bg-rose-500 text-white' : ''}`}>Expense</button>
+                    <button type="button" onClick={() => setTxType('Income')} className={`py-2 text-xs font-bold rounded-lg ${txType === 'Income' ? 'bg-emerald-500 text-white' : ''}`}>Income</button>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Amount</label>
+                    <input type="number" step="0.01" required value={txAmount} onChange={e=>setTxAmount(e.target.value)} className="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Category</label>
+                    <select required value={txCat} onChange={e=>setTxCat(e.target.value)} className="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600">
+                      <option value="">Select Category</option>
+                      {categories.filter(c => c.type === txType).map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Description</label>
+                    <input type="text" required value={txDesc} onChange={e=>setTxDesc(e.target.value)} className="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600" placeholder="e.g. Salary, Rent" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Date</label>
+                    <input type="date" required value={txDate} onChange={e=>setTxDate(e.target.value)} className="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600" />
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="w-1/2 py-2 border rounded-xl font-bold">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2 bg-indigo-600 text-white rounded-xl font-bold">Save</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Budget Modal */}
+          {isBudgetModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">📊 Set Monthly Budget</h3>
+                  <button onClick={() => setIsBudgetModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                </div>
+                <form onSubmit={handleAddBudget} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Category (leave blank for overall)</label>
+                    <select value={budgetCat} onChange={e => setBudgetCat(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm">
+                      <option value="">All Expenses (Overall)</option>
+                      {categories.filter(c => c.type === 'Expense').map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Monthly Limit (₱)</label>
+                    <input type="number" required min="1" step="0.01" value={budgetCap} onChange={e => setBudgetCap(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="e.g. 5000" />
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsBudgetModalOpen(false)} className="w-1/2 py-2.5 border rounded-xl font-bold text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm">Set Budget</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Recurring Bill Modal */}
+          {isRecurringModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">🔄 Add Recurring Bill</h3>
+                  <button onClick={() => setIsRecurringModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                </div>
+                <form onSubmit={handleAddRecurring} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Bill Name</label>
+                    <input type="text" required value={recTitle} onChange={e => setRecTitle(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="e.g. Netflix, Rent" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Amount (₱)</label>
+                      <input type="number" required min="1" step="0.01" value={recAmount} onChange={e => setRecAmount(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Frequency</label>
+                      <select value={recFreq} onChange={e => setRecFreq(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <option>Daily</option>
+                        <option>Weekly</option>
+                        <option>Monthly</option>
+                        <option>Yearly</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Category</label>
+                      <select required value={recCat} onChange={e => setRecCat(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <option value="">Select…</option>
+                        {categories.filter(c => c.type === 'Expense').map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Next Due Date</label>
+                      <input type="date" required value={recNextDue} onChange={e => setRecNextDue(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsRecurringModalOpen(false)} className="w-1/2 py-2.5 border rounded-xl font-bold text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm">Add Bill</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Savings Goal Modal */}
+          {isSavingsModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white">🎯 New Savings Goal</h3>
+                  <button onClick={() => setIsSavingsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+                </div>
+                <form onSubmit={handleAddSavings} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Goal Name</label>
+                    <input type="text" required value={savGoalName} onChange={e => setSavGoalName(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="e.g. Emergency Fund, Laptop" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Target Amount (₱)</label>
+                      <input type="number" required min="1" step="0.01" value={savTarget} onChange={e => setSavTarget(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">Starting Amount (₱)</label>
+                      <input type="number" min="0" step="0.01" value={savInit} onChange={e => setSavInit(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="0.00 (optional)" />
+                    </div>
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsSavingsModalOpen(false)} className="w-1/2 py-2.5 border rounded-xl font-bold text-sm text-gray-600 dark:text-gray-300">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm">Create Goal</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Deposit Modal */}
+          {isDepositModalOpen && (
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-5">
+                <div className="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">💰 Add Deposit</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Goal: <span className="font-semibold text-emerald-600">{depositGoalName}</span></p>
+                  </div>
+                  <button onClick={() => setIsDepositModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+                </div>
+                <form onSubmit={handleSubmitDeposit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Deposit Amount (₱)</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₱</span>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        step="0.01"
+                        autoFocus
+                        value={depositAmount}
+                        onChange={e => setDepositAmount(e.target.value)}
+                        className="w-full pl-8 pr-4 py-3 border rounded-xl dark:bg-gray-700 dark:border-gray-600 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-400"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button type="button" onClick={() => setIsDepositModalOpen(false)} className="w-1/2 py-2.5 border rounded-xl font-bold text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+                    <button type="submit" className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-sm transition-colors">+ Deposit</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
