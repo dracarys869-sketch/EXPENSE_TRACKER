@@ -1,6 +1,6 @@
 # Modern Expense Tracker System (Django + React)
 
-A full-stack, production-ready **Expense Tracker Application** built with **Python Django REST API** and **React.js / HTML Frontend**.
+A full-stack, production-ready **Expense Tracker Application** built with **Python Django REST API** and **React.js / Vite Frontend**.
 
 ---
 
@@ -51,8 +51,8 @@ A full-stack, production-ready **Expense Tracker Application** built with **Pyth
    ```
    The frontend app will open at `http://localhost:3000`.
 
-#### Option B: Using Python Dev Server (Fallback)
-If Node.js / `npm` is not installed on your system:
+#### Option B: Using Python Dev Server (Fallback — No Node.js required)
+If Node.js / `npm` is not installed on your system, a standalone CDN version is available:
 1. Navigate to the frontend directory:
    ```bash
    cd frontend
@@ -61,4 +61,5 @@ If Node.js / `npm` is not installed on your system:
    ```bash
    python serve.py
    ```
-   The static frontend server will run at `http://localhost:3000`.
+   The static frontend server will run at `http://localhost:3001`.
+   > **Note:** This serves `index-standalone.html` — a self-contained version of the app using CDN libraries. It does not require a build step.
