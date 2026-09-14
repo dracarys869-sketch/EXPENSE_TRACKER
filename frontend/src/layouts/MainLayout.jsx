@@ -7,7 +7,7 @@ const MainLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-screen bg-white text-black overflow-hidden">
       {/* Sidebar navigation */}
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 

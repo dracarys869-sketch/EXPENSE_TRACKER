@@ -5,18 +5,48 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+  }
+
+  /* Keep text black by default while allowing explicit contrast utilities to win. */
+  :where(h1, h2, h3, h4, h5, h6, p, span, label, td, th, li, a) {
+    color: #000000;
+  }
+
+  input, select, textarea {
+    color: #000000;
+  }
+
+  .dark input, .dark select, .dark textarea {
+    color: #ffffff;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: rgba(0, 0, 0, 0.45) !important;
+  }
+}
+
+@layer utilities {
+  /* Filled green controls need white text for readable contrast. */
+  .bg-brand-600, .bg-brand-700, .bg-brand-800, .bg-brand-900, .bg-brand-950,
+  .bg-brand-600 *, .bg-brand-700 *, .bg-brand-800 *, .bg-brand-900 *, .bg-brand-950 *,
+  .bg-rose-500, .bg-rose-500 *, .bg-emerald-500, .bg-emerald-500 * {
+    color: #ffffff !important;
   }
 }
 
 /* Custom glassmorphism & subtle scrollbar styles */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #DDD8CA;
 }
 
 .dark .glass-panel {
-  background: rgba(17, 24, 39, 0.7);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #20321E;
 }
 
 /* Custom scrollbar */
@@ -24,13 +54,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #8e9b84;
   border-radius: 9999px;
 }
+
 .dark ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: #466245;
 }

@@ -99,13 +99,13 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-brand-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-brand-100 dark:border-brand-700 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between pb-4 border-b border-brand-100 dark:border-brand-700">
+          <h3 className="text-xl font-bold text-brand-900 dark:text-white">
             {initialData ? 'Edit Transaction' : 'Add New Transaction'}
           </h3>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+          <button onClick={onClose} className="p-1 rounded-lg text-brand-400 hover:text-brand-600 dark:hover:text-brand-200">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -119,12 +119,12 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* Type Toggle */}
-          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
+          <div className="grid grid-cols-2 gap-2 p-1 bg-brand-100 dark:bg-brand-700 rounded-xl">
             <button
               type="button"
               onClick={() => { setType('Expense'); setCategoryId(''); }}
               className={`py-2 text-sm font-semibold rounded-lg transition-colors ${
-                type === 'Expense' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300'
+                type === 'Expense' ? 'bg-rose-500 text-white shadow-sm' : 'text-brand-600 dark:text-brand-300'
               }`}
             >
               Expense
@@ -133,7 +133,7 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
               type="button"
               onClick={() => { setType('Income'); setCategoryId(''); }}
               className={`py-2 text-sm font-semibold rounded-lg transition-colors ${
-                type === 'Income' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300'
+                type === 'Income' ? 'bg-emerald-500 text-white shadow-sm' : 'text-brand-600 dark:text-brand-300'
               }`}
             >
               Income
@@ -142,7 +142,7 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
 
           {/* Amount */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Amount</label>
+            <label className="block text-xs font-semibold uppercase text-brand-500 dark:text-brand-400 mb-1">Amount</label>
             <input
               type="number"
               step="0.01"
@@ -150,18 +150,18 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-lg font-bold"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none text-lg font-bold"
             />
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Category</label>
+            <label className="block text-xs font-semibold uppercase text-brand-500 dark:text-brand-400 mb-1">Category</label>
             <select
               required
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
             >
               <option value="">Select Category</option>
               {filteredCategories.map((cat) => (
@@ -174,26 +174,26 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Description</label>
+            <label className="block text-xs font-semibold uppercase text-brand-500 dark:text-brand-400 mb-1">Description</label>
             <input
               type="text"
               required
               placeholder="e.g. Grocery shopping, Monthly Salary"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-1">Date</label>
+            <label className="block text-xs font-semibold uppercase text-brand-500 dark:text-brand-400 mb-1">Date</label>
             <input
               type="date"
               required
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
 
@@ -201,14 +201,14 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, initialData = null }) =>
             <button
               type="button"
               onClick={onClose}
-              className="w-1/2 py-2.5 px-4 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="w-1/2 py-2.5 px-4 rounded-xl border border-brand-300 dark:border-brand-600 text-brand-700 dark:text-brand-300 font-semibold hover:bg-brand-50 dark:hover:bg-brand-700 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-1/2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-1/2 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-md shadow-brand-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

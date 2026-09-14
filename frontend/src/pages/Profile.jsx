@@ -48,8 +48,8 @@ const Profile = () => {
     <MainLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User Profile</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Update your personal account details & password</p>
+          <h2 className="text-2xl font-bold text-brand-900 dark:text-white">User Profile</h2>
+          <p className="text-sm text-brand-500 dark:text-brand-400">Update your personal account details & password</p>
         </div>
 
         {message && (
@@ -66,63 +66,63 @@ const Profile = () => {
           </div>
         )}
 
-        <div className="p-6 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Full Name</label>
+              <label className="block text-xs font-semibold uppercase text-brand-500 mb-1">Full Name</label>
               <div className="relative">
-                <User className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
                 <input
                   type="text"
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Email Address</label>
+              <label className="block text-xs font-semibold uppercase text-brand-500 mb-1">Email Address</label>
               <div className="relative">
-                <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white outline-none"
                 />
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
-              <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">Change Password (Optional)</h4>
+            <div className="pt-4 border-t border-brand-100 dark:border-brand-700 space-y-4">
+              <h4 className="font-bold text-sm text-brand-800 dark:text-brand-200">Change Password (Optional)</h4>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Current Password</label>
+                <label className="block text-xs font-semibold uppercase text-brand-500 mb-1">Current Password</label>
                 <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
                   <input
                     type="password"
                     placeholder="Enter current password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">New Password</label>
+                <label className="block text-xs font-semibold uppercase text-brand-500 mb-1">New Password</label>
                 <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
                   <input
                     type="password"
                     placeholder="Minimum 6 characters"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 dark:text-white outline-none"
                   />
                 </div>
               </div>
@@ -131,7 +131,7 @@ const Profile = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-500/20 transition-all flex justify-center items-center mt-6"
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all flex justify-center items-center mt-6"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

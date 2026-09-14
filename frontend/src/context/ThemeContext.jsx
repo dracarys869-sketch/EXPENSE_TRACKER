@@ -6,7 +6,6 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  const [theme, setTheme] = useState(() => localStorage.getItem('app_theme') || 'light');
   const [currency, setCurrency] = useState(() => localStorage.getItem('app_currency') || 'USD');
   const [dateFormat, setDateFormat] = useState('YYYY-MM-DD');
 
@@ -17,14 +16,9 @@ export const ThemeProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('app_theme', theme);
-  }, [theme]);
+    window.document.documentElement.classList.remove('dark');
+    localStorage.removeItem('app_theme');
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('app_currency', currency);
@@ -36,7 +30,6 @@ export const ThemeProvider = ({ children }) => {
       api.get('/settings')
         .then((res) => {
           if (res.data) {
-            setTheme(res.data.theme || 'light');
             setCurrency(res.data.currency || 'USD');
             setDateFormat(res.data.date_format || 'YYYY-MM-DD');
           }
@@ -46,11 +39,10 @@ export const ThemeProvider = ({ children }) => {
   }, [isAuthenticated]);
 
   const updateSettings = async (newSettings) => {
-    if (newSettings.theme) setTheme(newSettings.theme);
     if (newSettings.currency) setCurrency(newSettings.currency);
     if (newSettings.date_format) setDateFormat(newSettings.date_format);
 
-    if (isAuthenticated) {
+    if (isAuthenticated && !newSettings.theme) {
       try {
         await api.put('/settings', newSettings);
       } catch (err) {
@@ -66,7 +58,7 @@ export const ThemeProvider = ({ children }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, currency, setCurrency, currencySymbols, formatAmount, updateSettings, dateFormat }}>
+    <ThemeContext.Provider value={{ currency, setCurrency, currencySymbols, formatAmount, updateSettings, dateFormat }}>
       {children}
     </ThemeContext.Provider>
   );

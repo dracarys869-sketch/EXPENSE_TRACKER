@@ -12,7 +12,7 @@ const MobileNav = () => {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border-t border-gray-200 dark:border-gray-700 z-40 px-2 py-1">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-brand-800/90 backdrop-blur-lg border-t border-brand-200 dark:border-brand-700 z-40 px-2 py-1">
       <div className="flex justify-around items-center">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -21,10 +21,9 @@ const MobileNav = () => {
               key={item.name}
               to={item.path}
               className={({ isActive }) =>
-                `flex flex-col items-center py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                `flex flex-col items-center py-2 px-3 rounded-lg text-xs font-medium transition-colors ${isActive
+                  ? 'text-brand-600 dark:text-brand-400 font-semibold'
+                  : 'text-brand-500 dark:text-brand-400 hover:text-brand-900 dark:hover:text-white'
                 }`
               }
             >
