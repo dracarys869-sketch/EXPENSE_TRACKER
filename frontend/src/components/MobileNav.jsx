@@ -1,14 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Receipt, Tag, BarChart3, Settings } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LayoutDashboard, Receipt, Tag, Target, BarChart3, Settings, ShieldCheck } from 'lucide-react';
 
 const MobileNav = () => {
+  const { user } = useAuth();
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Transactions', path: '/transactions', icon: Receipt },
     { name: 'Categories', path: '/categories', icon: Tag },
+    { name: 'Budgets', path: '/budgets', icon: Target },
     { name: 'Reports', path: '/reports', icon: BarChart3 },
     { name: 'Settings', path: '/settings', icon: Settings },
+    ...(user?.is_admin ? [{ name: 'Admin', path: '/admin', icon: ShieldCheck }] : []),
   ];
 
   return (

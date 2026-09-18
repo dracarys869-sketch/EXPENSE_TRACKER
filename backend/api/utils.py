@@ -41,3 +41,13 @@ def jwt_required(view_func):
             
         return view_func(request, *args, **kwargs)
     return wrapped_view
+
+
+def admin_required(view_func):
+    @wraps(view_func)
+    @jwt_required
+    def wrapped_view(request, *args, **kwargs):
+        if not request.user_obj.is_admin or not request.user_obj.is_active:
+            return JsonResponse({'message': 'Administrator access required.'}, status=403)
+        return view_func(request, *args, **kwargs)
+    return wrapped_view

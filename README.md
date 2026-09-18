@@ -2,6 +2,19 @@
 
 A full-stack, production-ready **Expense Tracker Application** built with **Python Django REST API** and **React.js / Vite Frontend**.
 
+## Project Structure
+
+```text
+backend/
+   api/             Django application and API endpoints
+   expense_tracker/ Django project configuration
+   instance/        Local runtime database files
+   manage.py        Django management commands
+frontend/
+   src/             React/Vite application
+   standalone/      CDN-based fallback frontend and static server
+```
+
 ---
 
 ## 🚀 How to Run Locally
@@ -59,7 +72,17 @@ If Node.js / `npm` is not installed on your system, a standalone CDN version is 
    ```
 2. Start the built-in Python static server:
    ```bash
-   python serve.py
+   python standalone/serve.py
    ```
    The static frontend server will run at `http://localhost:3001`.
-   > **Note:** This serves `index-standalone.html` — a self-contained version of the app using CDN libraries. It does not require a build step.
+   > **Note:** This serves `standalone/index.html` — a self-contained version of the app using CDN libraries. It does not require a build step.
+
+
+cd backend
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 5000
+
+cd frontend
+npm install
+npm run dev

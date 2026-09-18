@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Wallet, Mail, Lock, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import api from '../services/api';
+import { Wallet, Mail, Lock, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -24,6 +32,58 @@ const Login = () => {
       navigate('/');
     } else {
       setError(result.message);
+    }
+  };
+
+  const openForgotPassword = () => {
+    setShowForgotPassword(true);
+    setError('');
+    setSuccess('');
+    setOtpSent(false);
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setRecoveryLoading(true);
+    try {
+      const res = await api.post('/send-otp', { email });
+      setOtpSent(true);
+      setSuccess(res.data.message);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to send the verification code.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setRecoveryLoading(true);
+    try {
+      const res = await api.post('/reset-password-otp', {
+        email,
+        otp,
+        new_password: newPassword,
+      });
+      setSuccess(res.data.message);
+      setShowForgotPassword(false);
+      setOtpSent(false);
+      setPassword('');
+      setOtp('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to reset your password.');
+    } finally {
+      setRecoveryLoading(false);
     }
   };
 
@@ -84,6 +144,46 @@ const Login = () => {
             </div>
           )}
 
+          {success && (
+            <div className="p-4 rounded-xl bg-emerald-50 border-2 border-emerald-600 flex items-center space-x-3 text-black font-semibold">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {showForgotPassword ? (
+            <form className="mt-8 space-y-6" onSubmit={otpSent ? handleResetPassword : handleSendOtp}>
+              <div>
+                <h3 className="flex items-center gap-2 text-xl font-extrabold text-black"><KeyRound className="w-5 h-5" /> Change password</h3>
+                <p className="mt-2 text-sm text-black font-medium">We will send a one-time verification code to your email.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-1.5">Email Address</label>
+                <div className="relative">
+                  <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-[#20321E]" />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-[#466245] bg-white text-black font-semibold placeholder-neutral-500 focus:border-[#20321E] focus:ring-2 focus:ring-[#466245]/20 outline-none transition-colors" />
+                </div>
+              </div>
+              {otpSent && (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-black mb-1.5">Email OTP</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="6-digit code" className="w-full px-4 py-3 rounded-xl border-2 border-[#466245] bg-white text-black font-semibold placeholder-neutral-500 focus:border-[#20321E] focus:ring-2 focus:ring-[#466245]/20 outline-none transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-black mb-1.5">New Password</label>
+                    <input type="password" minLength="6" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" className="w-full px-4 py-3 rounded-xl border-2 border-[#466245] bg-white text-black font-semibold placeholder-neutral-500 focus:border-[#20321E] focus:ring-2 focus:ring-[#466245]/20 outline-none transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-black mb-1.5">Confirm New Password</label>
+                    <input type="password" minLength="6" required value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Repeat new password" className="w-full px-4 py-3 rounded-xl border-2 border-[#466245] bg-white text-black font-semibold placeholder-neutral-500 focus:border-[#20321E] focus:ring-2 focus:ring-[#466245]/20 outline-none transition-colors" />
+                  </div>
+                </>
+              )}
+              <button type="submit" disabled={recoveryLoading} className="w-full py-3.5 px-4 bg-[#DDD8CA] hover:bg-[#466245] text-black font-extrabold text-base rounded-xl border-2 border-[#20321E] shadow-[4px_4px_0px_#20321E] transition-all disabled:opacity-50">{recoveryLoading ? 'Please wait...' : otpSent ? 'Change Password' : 'Send Email OTP'}</button>
+              <button type="button" onClick={() => { setShowForgotPassword(false); setError(''); setSuccess(''); }} className="w-full flex items-center justify-center gap-2 text-sm font-bold text-black hover:text-[#466245]"><ArrowLeft className="w-4 h-4" /> Back to sign in</button>
+            </form>
+          ) : (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
@@ -115,6 +215,9 @@ const Login = () => {
                   />
                 </div>
               </div>
+              <div className="text-right -mt-2">
+                <button type="button" onClick={openForgotPassword} className="text-sm font-bold text-black underline hover:text-[#466245]">Forgot password?</button>
+              </div>
             </div>
 
             <button
@@ -132,6 +235,7 @@ const Login = () => {
               )}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

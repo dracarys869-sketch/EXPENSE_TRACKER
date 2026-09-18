@@ -6,6 +6,8 @@ class User(models.Model):
     full_name = models.CharField(max_length=100)
     email = models.EmailField(unique=True, db_index=True)
     password_hash = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    is_admin = models.BooleanField(default=False)
     otp = models.CharField(max_length=6, blank=True, null=True)
     otp_expiry = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -28,6 +30,8 @@ class User(models.Model):
             'id': self.id,
             'full_name': self.full_name,
             'email': self.email,
+            'is_active': self.is_active,
+            'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -182,5 +186,29 @@ class Notification(models.Model):
             'title': self.title,
             'message': self.message,
             'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class AuditLog(models.Model):
+    actor_id = models.IntegerField(null=True, blank=True)
+    action = models.CharField(max_length=100)
+    target_type = models.CharField(max_length=50, blank=True)
+    target_id = models.CharField(max_length=50, blank=True)
+    details = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        db_table = 'audit_logs'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'actor_id': self.actor_id,
+            'actor_name': User.objects.filter(id=self.actor_id).values_list('full_name', flat=True).first() or 'System',
+            'action': self.action,
+            'target_type': self.target_type,
+            'target_id': self.target_id,
+            'details': self.details,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

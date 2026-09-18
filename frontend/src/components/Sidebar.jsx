@@ -5,9 +5,11 @@ import {
   LayoutDashboard,
   Receipt,
   Tag,
+  Target,
   BarChart3,
   User,
   Settings,
+  ShieldCheck,
   LogOut,
   Wallet,
   ChevronLeft,
@@ -22,9 +24,11 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Transactions', path: '/transactions', icon: Receipt },
     { name: 'Categories', path: '/categories', icon: Tag },
+    { name: 'Budgets', path: '/budgets', icon: Target },
     { name: 'Reports', path: '/reports', icon: BarChart3 },
     { name: 'Profile', path: '/profile', icon: User },
     { name: 'Settings', path: '/settings', icon: Settings },
+    ...(user?.is_admin ? [{ name: 'Admin', path: '/admin', icon: ShieldCheck }] : []),
   ];
 
   const handleLogout = () => {

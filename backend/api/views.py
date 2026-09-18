@@ -10,7 +10,7 @@ from django.db.models import Sum, Q, F
 from django.core.mail import send_mail
 from django.conf import settings
 
-from api.models import User, Category, Transaction, Settings, Budget, RecurringExpense, SavingsGoal, Notification
+from api.models import User, Category, Transaction, Settings, Budget, RecurringExpense, SavingsGoal, Notification, AuditLog
 from api.seed import seed_user_defaults
 from api.utils import create_access_token, jwt_required
 
@@ -73,7 +73,7 @@ def login(request):
         return JsonResponse({'message': 'Email and password are required.'}, status=400)
 
     user = User.objects.filter(email=email).first()
-    if not user or not user.check_password(password):
+    if not user or not user.is_active or not user.check_password(password):
         return JsonResponse({'message': 'Invalid email or password.'}, status=401)
 
     access_token = create_access_token(user.id)
@@ -585,7 +585,7 @@ def budgets_list_create(request):
 
     if request.method == 'GET':
         budgets = Budget.objects.filter(user=user)
-        now = datetime.utcnow()
+        current_date = timezone.localdate()
 
         result = []
         for b in budgets:
@@ -593,15 +593,22 @@ def budgets_list_create(request):
             tx_qs = Transaction.objects.filter(
                 user=user,
                 type='Expense',
-                transaction_date__month=now.month,
-                transaction_date__year=now.year
+                transaction_date__month=current_date.month,
+                transaction_date__year=current_date.year
             )
             if b.category_id:
                 tx_qs = tx_qs.filter(category_id=b.category_id)
 
             spent = tx_qs.aggregate(total=Sum('amount'))['total'] or 0.0
-            b_dict['spent_amount'] = round(float(spent), 2)
-            b_dict['percentage_used'] = round((float(spent) / b.monthly_limit) * 100, 1) if b.monthly_limit > 0 else 0
+            limit = float(b.monthly_limit)
+            spent = round(float(spent), 2)
+            remaining = round(limit - spent, 2)
+            percentage_used = round((spent / limit) * 100, 1) if limit > 0 else 0
+            b_dict['spent_amount'] = spent
+            b_dict['remaining_amount'] = remaining
+            b_dict['percentage_used'] = percentage_used
+            b_dict['status'] = 'overspent' if spent > limit else 'warning' if percentage_used >= 80 else 'on_track'
+            b_dict['month'] = current_date.strftime('%Y-%m')
             result.append(b_dict)
 
         return JsonResponse(result, safe=False, status=200)
@@ -609,10 +616,22 @@ def budgets_list_create(request):
     elif request.method == 'POST':
         data = parse_json(request)
         category_id = data.get('category_id')
-        monthly_limit = float(data.get('monthly_limit', 0))
+        try:
+            monthly_limit = float(data.get('monthly_limit', 0))
+        except (TypeError, ValueError):
+            monthly_limit = 0
 
         if monthly_limit <= 0:
             return JsonResponse({'message': 'Monthly limit must be greater than zero.'}, status=400)
+
+        if category_id:
+            category = Category.objects.filter(
+                Q(user=user) | Q(user__isnull=True),
+                id=category_id,
+                type='Expense'
+            ).first()
+            if not category:
+                return JsonResponse({'message': 'Invalid expense category.'}, status=400)
 
         existing = Budget.objects.filter(user=user, category_id=category_id).first()
         if existing:

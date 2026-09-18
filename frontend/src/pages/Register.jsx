@@ -42,16 +42,7 @@ const Register = () => {
   return (
     <div className="min-h-screen flex bg-brand-50 dark:bg-brand-900">
       <div className="w-full flex items-center justify-center p-8 sm:p-12">
-        <div className="max-w-md w-full space-y-8">
-          <Link
-            to="/login"
-            aria-label="Back to login"
-            title="Back to login"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-xl text-brand-500 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-800 dark:hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-
+        <div className="relative max-w-md w-full space-y-8">
           <div>
             <div className="flex items-center space-x-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold">
@@ -59,6 +50,14 @@ const Register = () => {
               </div>
               <span className="text-xl font-bold text-brand-900 dark:text-white">ExpenseTracker Pro</span>
             </div>
+            <Link
+              to="/login"
+              aria-label="Back to login"
+              title="Back to login"
+              className="absolute top-0 right-0 inline-flex items-center justify-center w-10 h-10 rounded-xl text-brand-500 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-800 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
             <h2 className="text-3xl font-bold text-brand-900 dark:text-white">Create your account</h2>
             <p className="mt-2 text-sm text-brand-600 dark:text-brand-400">
               Already have an account?{' '}

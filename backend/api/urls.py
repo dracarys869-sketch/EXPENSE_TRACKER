@@ -1,5 +1,6 @@
 from django.urls import path
 from api import views
+from api import admin_views
 
 urlpatterns = [
     # Auth
@@ -47,4 +48,14 @@ urlpatterns = [
     path('notifications', views.notifications_list),
     path('notifications/read-all', views.notifications_mark_read),
     path('notifications/send-digest', views.notifications_send_digest),
+
+    # Administration
+    path('admin/overview', admin_views.admin_overview),
+    path('admin/users', admin_views.admin_users),
+    path('admin/users/<int:user_id>/status', admin_views.admin_user_status),
+    path('admin/categories', admin_views.admin_categories),
+    path('admin/categories/<int:category_id>', admin_views.admin_category_detail),
+    path('admin/reports', admin_views.admin_reports),
+    path('admin/audit-logs', admin_views.admin_audit_logs),
+    path('admin/backup', admin_views.admin_backup),
 ]
