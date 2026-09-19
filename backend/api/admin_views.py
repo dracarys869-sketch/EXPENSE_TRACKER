@@ -7,7 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Count, Sum
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from api.models import AuditLog, Category, Transaction, User
@@ -73,7 +73,16 @@ def admin_overview(request):
 @admin_required
 def admin_users(request):
     if request.method == 'GET':
-        return JsonResponse([user_summary(user) for user in User.objects.order_by('-created_at')], safe=False)
+        users = User.objects.order_by('-created_at')
+        search = request.GET.get('search', '').strip()
+        status = request.GET.get('status', 'all')
+        if search:
+            users = users.filter(full_name__icontains=search) | users.filter(email__icontains=search)
+        if status == 'active':
+            users = users.filter(is_active=True)
+        elif status == 'inactive':
+            users = users.filter(is_active=False)
+        return JsonResponse([user_summary(user) for user in users.distinct()], safe=False)
     return JsonResponse({'message': 'Method not allowed.'}, status=405)
 
 
@@ -98,6 +107,60 @@ def admin_user_status(request, user_id):
     action = 'activated_user' if user.is_active else 'deactivated_user'
     write_audit(request.user_obj, action, 'User', user.id, user.email)
     return JsonResponse(user_summary(user))
+
+
+@csrf_exempt
+@admin_required
+def admin_user_detail(request, user_id):
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return JsonResponse({'message': 'User not found.'}, status=404)
+
+    if request.method == 'GET':
+        return JsonResponse(user_summary(user))
+
+    if request.method == 'PUT':
+        data = parse_json(request)
+        full_name = str(data.get('full_name', '')).strip()
+        email = str(data.get('email', '')).strip().lower()
+        if not full_name or not email:
+            return JsonResponse({'message': 'Full name and email are required.'}, status=400)
+        if User.objects.filter(email=email).exclude(id=user.id).exists():
+            return JsonResponse({'message': 'Email address is already registered.'}, status=400)
+        user.full_name = full_name
+        user.email = email
+        user.save(update_fields=['full_name', 'email'])
+        write_audit(request.user_obj, 'updated_user', 'User', user.id, user.email)
+        return JsonResponse(user_summary(user))
+
+    if request.method == 'DELETE':
+        if user.id == request.user_obj.id:
+            return JsonResponse({'message': 'You cannot delete your own account.'}, status=400)
+        email = user.email
+        user.delete()
+        write_audit(request.user_obj, 'deleted_user', 'User', user_id, email)
+        return JsonResponse({'message': 'User account deleted successfully.'})
+
+    return JsonResponse({'message': 'Method not allowed.'}, status=405)
+
+
+@csrf_exempt
+@admin_required
+def admin_user_password(request, user_id):
+    if request.method != 'POST':
+        return JsonResponse({'message': 'Method not allowed.'}, status=405)
+
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return JsonResponse({'message': 'User not found.'}, status=404)
+    data = parse_json(request)
+    password = data.get('password', '')
+    if not isinstance(password, str) or len(password) < 6:
+        return JsonResponse({'message': 'Password must be at least 6 characters.'}, status=400)
+    user.set_password(password)
+    user.save(update_fields=['password_hash'])
+    write_audit(request.user_obj, 'reset_user_password', 'User', user.id, user.email)
+    return JsonResponse({'message': 'User password reset successfully.'})
 
 
 @csrf_exempt

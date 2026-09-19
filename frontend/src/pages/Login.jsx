@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Wallet, Mail, Lock, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, KeyRound } from 'lucide-react';
+import { Wallet, Mail, Lock, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, KeyRound, ShieldCheck } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -15,7 +15,8 @@ const Login = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [recoveryLoading, setRecoveryLoading] = useState(false);
-  const { login, loading } = useAuth();
+  const [adminLogin, setAdminLogin] = useState(false);
+  const { login, logout, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -29,7 +30,12 @@ const Login = () => {
 
     const result = await login(email, password);
     if (result.success) {
-      navigate('/');
+      if (adminLogin && !result.user.is_admin) {
+        logout();
+        setError('This account does not have administrator access.');
+        return;
+      }
+      navigate(adminLogin ? '/admin' : '/');
     } else {
       setError(result.message);
     }
@@ -218,6 +224,16 @@ const Login = () => {
               <div className="text-right -mt-2">
                 <button type="button" onClick={openForgotPassword} className="text-sm font-bold text-black underline hover:text-[#466245]">Forgot password?</button>
               </div>
+              <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={adminLogin}
+                  onChange={(e) => setAdminLogin(e.target.checked)}
+                  className="w-4 h-4 accent-[#466245]"
+                />
+                <ShieldCheck className="w-4 h-4 text-[#466245]" />
+                <span>Sign in as administrator</span>
+              </label>
             </div>
 
             <button

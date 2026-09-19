@@ -53,6 +53,8 @@ urlpatterns = [
     path('admin/overview', admin_views.admin_overview),
     path('admin/users', admin_views.admin_users),
     path('admin/users/<int:user_id>/status', admin_views.admin_user_status),
+    path('admin/users/<int:user_id>', admin_views.admin_user_detail),
+    path('admin/users/<int:user_id>/password', admin_views.admin_user_password),
     path('admin/categories', admin_views.admin_categories),
     path('admin/categories/<int:category_id>', admin_views.admin_category_detail),
     path('admin/reports', admin_views.admin_reports),

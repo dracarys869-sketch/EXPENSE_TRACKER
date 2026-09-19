@@ -86,3 +86,6 @@ python manage.py runserver 5000
 cd frontend
 npm install
 npm run dev
+
+expenseAdmin@gmail.com
+Admin123
