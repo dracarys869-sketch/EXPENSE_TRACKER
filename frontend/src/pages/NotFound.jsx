@@ -4,22 +4,30 @@ import { FileQuestion, Home } from 'lucide-react';
 
 const NotFound = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-50 dark:bg-brand-900 p-6 text-center">
-      <div className="max-w-md space-y-6">
-        <div className="w-20 h-20 bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-brand-500/10">
-          <FileQuestion className="w-10 h-10" />
+    <div className="min-h-screen flex items-center justify-center bg-stone-100 p-6 text-center">
+      <div className="max-w-md space-y-5">
+        <div className="w-16 h-16 bg-white border border-stone-200 text-stone-400 rounded-2xl flex items-center justify-center mx-auto">
+          <FileQuestion className="w-8 h-8" />
         </div>
-        <h1 className="text-4xl font-extrabold text-brand-900 dark:text-white">404 - Page Not Found</h1>
-        <p className="text-brand-500 dark:text-brand-400">
-          The requested route doesn't exist or has been moved.
+        <h1 className="text-3xl font-bold tracking-tight">Page not found</h1>
+        <p className="text-sm text-stone-600">
+          This page doesn't exist or was moved.
         </p>
-        <Link
-          to="/"
-          className="inline-flex items-center space-x-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md transition-colors"
-        >
-          <Home className="w-5 h-5" />
-          <span>Back to Dashboard</span>
-        </Link>
+        <div className="flex items-center justify-center gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            <span>Back home</span>
+          </Link>
+          <Link
+            to="/welcome"
+            className="px-5 py-2.5 bg-white border border-stone-300 hover:border-stone-400 text-sm font-semibold rounded-lg transition-colors"
+          >
+            About
+          </Link>
+        </div>
       </div>
     </div>
   );

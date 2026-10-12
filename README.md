@@ -12,7 +12,6 @@ backend/
    manage.py        Django management commands
 frontend/
    src/             React/Vite application
-   standalone/      CDN-based fallback frontend and static server
 ```
 
 ---
@@ -45,9 +44,9 @@ frontend/
 
 ---
 
-### 2. Run Frontend (React Vite / Python Fallback)
+### 2. Run Frontend
 
-#### Option A: Using Node.js / Vite (Recommended)
+#### Using Node.js / Vite
 1. Open another terminal and navigate to the frontend folder:
    ```bash
    cd frontend
@@ -63,29 +62,3 @@ frontend/
    npm run dev
    ```
    The frontend app will open at `http://localhost:3000`.
-
-#### Option B: Using Python Dev Server (Fallback — No Node.js required)
-If Node.js / `npm` is not installed on your system, a standalone CDN version is available:
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Start the built-in Python static server:
-   ```bash
-   python standalone/serve.py
-   ```
-   The static frontend server will run at `http://localhost:3001`.
-   > **Note:** This serves `standalone/index.html` — a self-contained version of the app using CDN libraries. It does not require a build step.
-
-
-cd backend
-python -m pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver 5000
-
-cd frontend
-npm install
-npm run dev
-
-expenseAdmin@gmail.com
-Admin123

@@ -110,22 +110,22 @@ const Dashboard = () => {
       {
         label: 'Income',
         data: monthlyChartData.map((d) => d.income),
-        backgroundColor: 'rgba(16, 185, 129, 0.85)',
-        borderRadius: 6,
+        backgroundColor: '#525252',
+        borderRadius: 3,
       },
       {
         label: 'Expense',
         data: monthlyChartData.map((d) => d.expense),
-        backgroundColor: 'rgba(244, 63, 94, 0.85)',
-        borderRadius: 6,
+        backgroundColor: '#171717',
+        borderRadius: 3,
       },
     ],
   };
 
   // Doughnut Chart Configuration
   const categoryColors = [
-    '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
-    '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4', '#64748b'
+    '#171717', '#404040', '#737373', '#a3a3a3', '#d4d4d4',
+    '#262626', '#525252', '#8a8a8a', '#bdbdbd', '#e5e5e5'
   ];
   const doughnutChartConfig = {
     labels: categoryChartData.map((c) => c.category_name),
@@ -146,21 +146,21 @@ const Dashboard = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-brand-900 dark:text-white">Dashboard</h2>
-            <p className="text-sm text-brand-500 dark:text-brand-400">Overview of your financial performance</p>
+            <p className="text-sm text-stone-600 dark:text-stone-400">This month · {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
           </div>
           <button
             onClick={() => { setEditingTx(null); setIsTxModalOpen(true); }}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all"
+            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-black hover:bg-stone-800 text-white font-semibold rounded-md transition-colors"
           >
             <Plus className="w-5 h-5" />
-            <span>Add Transaction</span>
+            <span>Add transaction</span>
           </button>
         </div>
 
         {/* 4 Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Balance */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
+          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Current Balance</span>
               <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400">
@@ -171,12 +171,12 @@ const Dashboard = () => {
               <h3 className={`text-2xl font-extrabold ${summary.current_balance >= 0 ? 'text-brand-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}`}>
                 {formatAmount(summary.current_balance)}
               </h3>
-              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">Available net funds</p>
+              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">Balance after expenses</p>
             </div>
           </div>
 
           {/* Income */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
+          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Total Income</span>
               <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
@@ -188,13 +188,13 @@ const Dashboard = () => {
                 {formatAmount(summary.total_income)}
               </h3>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center">
-                <ArrowUpRight className="w-4 h-4 mr-0.5" /> Total cash influx
+                <ArrowUpRight className="w-4 h-4 mr-0.5" /> Income this month
               </p>
             </div>
           </div>
 
           {/* Expenses */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
+          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Total Expenses</span>
               <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
@@ -206,13 +206,13 @@ const Dashboard = () => {
                 {formatAmount(summary.total_expenses)}
               </h3>
               <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 flex items-center">
-                <ArrowDownRight className="w-4 h-4 mr-0.5" /> Total cash outflow
+                <ArrowDownRight className="w-4 h-4 mr-0.5" /> Expenses this month
               </p>
             </div>
           </div>
 
           {/* Total Transactions */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
+          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Transactions</span>
               <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400">
@@ -223,7 +223,7 @@ const Dashboard = () => {
               <h3 className="text-2xl font-extrabold text-brand-900 dark:text-white">
                 {summary.total_transactions}
               </h3>
-              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">Recorded activities</p>
+              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">{summary.total_transactions} recorded</p>
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ const Dashboard = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Monthly Bar Chart (2 cols) */}
-          <div className="lg:col-span-2 p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
+          <div className="lg:col-span-2 p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
             <h3 className="text-lg font-bold text-brand-900 dark:text-white mb-4">Monthly Income vs Expense</h3>
             <div className="h-72">
               <Bar
@@ -246,7 +246,7 @@ const Dashboard = () => {
           </div>
 
           {/* Category Pie/Doughnut Chart (1 col) */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col">
+          <div className="p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col">
             <h3 className="text-lg font-bold text-brand-900 dark:text-white mb-4">Expense by Category</h3>
             <div className="h-64 flex items-center justify-center relative">
               {categoryChartData.length > 0 ? (
@@ -266,7 +266,7 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Transactions List */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
+        <div className="p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-brand-900 dark:text-white">Recent Transactions</h3>
             <a href="/transactions" className="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline">
@@ -276,7 +276,8 @@ const Dashboard = () => {
 
           {recentTransactions.length === 0 ? (
             <div className="py-12 text-center text-brand-500 dark:text-brand-400">
-              No recent transactions found. Click "Add Transaction" to start!
+              <p className="font-semibold text-brand-900 dark:text-white">No transactions yet</p>
+              <p className="mt-1">Add your first transaction to start tracking your spending.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

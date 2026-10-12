@@ -26,8 +26,8 @@ const MobileNav = () => {
               to={item.path}
               className={({ isActive }) =>
                 `flex flex-col items-center py-2 px-3 rounded-lg text-xs font-medium transition-colors ${isActive
-                  ? 'text-brand-600 dark:text-brand-400 font-semibold'
-                  : 'text-brand-500 dark:text-brand-400 hover:text-brand-900 dark:hover:text-white'
+                  ? 'text-black dark:text-white font-semibold'
+                  : 'text-black dark:text-stone-200 hover:text-black dark:hover:text-white'
                 }`
               }
             >

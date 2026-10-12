@@ -2,7 +2,12 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from urllib.parse import urlparse
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
+except ImportError:  # python-dotenv not installed (e.g. wrong interpreter) — env vars just won't load from .env
+
+    def load_dotenv(*args, **kwargs):  # type: ignore[no-redef]
+        return False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -55,7 +60,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'expense_tracker.wsgi.application'
 
 db_url = os.getenv('DATABASE_URL', '')
-if db_url.startswith('mysql'):
+OFFLINE_MODE = os.getenv('OFFLINE_MODE', 'True').lower() == 'true'
+if db_url.startswith('mysql') and not OFFLINE_MODE:
     cleaned_url = db_url.replace('mysql+pymysql://', 'http://').replace('mysql://', 'http://')
     parsed = urlparse(cleaned_url)
     DATABASES = {
@@ -97,7 +103,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = False
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -116,7 +122,11 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'sub',
 }
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = (
+    'django.core.mail.backends.console.EmailBackend'
+    if OFFLINE_MODE
+    else 'django.core.mail.backends.smtp.EmailBackend'
+)
 EMAIL_HOST = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('MAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'

@@ -38,13 +38,25 @@ const Reports = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    window.open('http://127.0.0.1:5000/api/reports/export/csv', '_blank');
+  const handleExport = async (kind) => {
+    try {
+      const res = await api.get(`/reports/export/${kind}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report.${kind === 'csv' ? 'csv' : 'pdf'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed', err);
+    }
   };
 
-  const handleExportPDF = () => {
-    window.open('http://127.0.0.1:5000/api/reports/export/pdf', '_blank');
-  };
+  const handleExportCSV = () => handleExport('csv');
+
+  const handleExportPDF = () => handleExport('pdf');
 
   // Chart configs
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -54,12 +66,12 @@ const Reports = () => {
       {
         label: 'Income',
         data: monthlyData.map((d) => d.income),
-        backgroundColor: '#10b981',
+        backgroundColor: '#8edb9b',
       },
       {
         label: 'Expense',
         data: monthlyData.map((d) => d.expense),
-        backgroundColor: '#f43f5e',
+        backgroundColor: '#f4d000',
       },
     ],
   };
@@ -70,15 +82,15 @@ const Reports = () => {
       {
         label: 'Income',
         data: yearlyData.map((d) => d.income),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderColor: '#08751d',
+        backgroundColor: 'rgba(142, 219, 155, 0.2)',
         fill: true,
       },
       {
         label: 'Expense',
         data: yearlyData.map((d) => d.expense),
-        borderColor: '#f43f5e',
-        backgroundColor: 'rgba(244, 63, 94, 0.1)',
+        borderColor: '#d9b900',
+        backgroundColor: 'rgba(244, 208, 0, 0.2)',
         fill: true,
       },
     ],
@@ -90,8 +102,8 @@ const Reports = () => {
       {
         data: categoryData.map((c) => c.total),
         backgroundColor: [
-          '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
-          '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4', '#64748b'
+          '#0b5d2a', '#08751d', '#8edb9b', '#f4d000', '#5fbd72',
+          '#075f18', '#b8e5bd', '#d9b900', '#064a16', '#20321e'
         ],
       },
     ],

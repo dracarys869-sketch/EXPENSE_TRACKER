@@ -5,17 +5,16 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: #ffffff;
-    color: #000000;
+    background-color: #f5f5f5;
+    color: #171717;
   }
 
-  /* Keep text black by default while allowing explicit contrast utilities to win. */
   :where(h1, h2, h3, h4, h5, h6, p, span, label, td, th, li, a) {
-    color: #000000;
+    color: #171717;
   }
 
   input, select, textarea {
-    color: #000000;
+    color: #171717;
   }
 
   .dark input, .dark select, .dark textarea {
@@ -23,7 +22,7 @@
   }
 
   input::placeholder, textarea::placeholder {
-    color: rgba(0, 0, 0, 0.45) !important;
+    color: rgba(23, 23, 23, 0.5) !important;
   }
 }
 
@@ -31,22 +30,21 @@
   /* Filled green controls need white text for readable contrast. */
   .bg-brand-600, .bg-brand-700, .bg-brand-800, .bg-brand-900, .bg-brand-950,
   .bg-brand-600 *, .bg-brand-700 *, .bg-brand-800 *, .bg-brand-900 *, .bg-brand-950 *,
+  .bg-black, .bg-black *,
   .bg-rose-500, .bg-rose-500 *, .bg-emerald-500, .bg-emerald-500 * {
     color: #ffffff !important;
   }
 }
 
-/* Custom glassmorphism & subtle scrollbar styles */
+/* Subtle surfaces and scrollbar styles */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #DDD8CA;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
 }
 
 .dark .glass-panel {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #20321E;
+  background: #262626;
+  border: 1px solid #404040;
 }
 
 /* Custom scrollbar */
@@ -60,10 +58,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #8e9b84;
+  background: #a3a3a3;
   border-radius: 9999px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #466245;
+  background: #525252;
 }
