@@ -9,6 +9,16 @@ const api = axios.create({
   },
 });
 
+export const getApiErrorMessage = (error, fallbackMessage) => {
+  if (!error.response) {
+    return 'Cannot reach the server. Make sure the backend is running, then try again.';
+  }
+  if (error.response.status >= 500) {
+    return 'The server is unavailable or encountered an error. Check that the backend is running, then try again.';
+  }
+  return error.response.data?.message || fallbackMessage;
+};
+
 // Interceptor to add Authorization Bearer Token
 api.interceptors.request.use(
   (config) => {

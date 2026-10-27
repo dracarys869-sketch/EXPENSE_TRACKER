@@ -1,357 +1,145 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, BarChart3, Plus, Receipt, RefreshCw, Wallet } from 'lucide-react';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import MainLayout from '../layouts/MainLayout';
-import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
+import PageHeader from '../components/PageHeader';
 import TransactionModal from '../components/TransactionModal';
 import ConfirmModal from '../components/ConfirmModal';
-import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  ArrowDownRight,
-  Plus,
-  Receipt,
-  Calendar,
-  Filter,
-  Trash2,
-  Edit2
-} from 'lucide-react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  PointElement,
-  LineElement,
-} from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  PointElement,
-  LineElement
-);
+import TransactionList from '../components/TransactionList';
+import { Alert, EmptyState, LoadingState } from '../components/Feedback';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import api from '../services/api';
+import { cartesianOptions, chartColors, doughnutOptions, expenseColor, incomeColor, monthNames } from '../utils/charts';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const { formatAmount } = useTheme();
-  const [summary, setSummary] = useState({
-    current_balance: 0,
-    total_income: 0,
-    total_expenses: 0,
-    total_transactions: 0,
-  });
-  const [recentTransactions, setRecentTransactions] = useState([]);
-  const [monthlyChartData, setMonthlyChartData] = useState([]);
-  const [categoryChartData, setCategoryChartData] = useState([]);
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const [summary, setSummary] = useState({ current_balance: 0, total_income: 0, total_expenses: 0, total_transactions: 0 });
+  const [transactions, setTransactions] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Modals state
-  const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [chartError, setChartError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const monthlyRequest = useRef(0);
 
-  useEffect(() => {
-    fetchDashboardData();
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [txResponse, categoryResponse] = await Promise.all([api.get('/transactions?per_page=5&sort_by=newest'), api.get('/reports/category?type=Expense')]);
+      setTransactions(txResponse.data.transactions);
+      setSummary(txResponse.data.summary);
+      setCategoryData([...categoryResponse.data].sort((a, b) => b.total - a.total));
+    } catch { setError('We couldn’t load your overview. Please try again.'); }
+    finally { setLoading(false); }
   }, []);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
+  const fetchMonthly = useCallback(async () => {
+    const request = ++monthlyRequest.current;
+    setChartLoading(true);
+    setChartError('');
     try {
-      // Fetch recent transactions and summary stats
-      const resTx = await api.get('/transactions?per_page=5&sort_by=newest');
-      setRecentTransactions(resTx.data.transactions);
-      setSummary(resTx.data.summary);
-
-      // Fetch monthly overview for bar chart
-      const resMonthly = await api.get('/reports/monthly');
-      setMonthlyChartData(resMonthly.data);
-
-      // Fetch category breakdown for doughnut chart
-      const resCat = await api.get('/reports/category?type=Expense');
-      setCategoryChartData(resCat.data);
-    } catch (err) {
-      console.error('Error fetching dashboard data', err);
+      const response = await api.get(`/reports/monthly?year=${year}`);
+      if (request === monthlyRequest.current) setMonthlyData(response.data);
+    } catch {
+      if (request === monthlyRequest.current) setChartError('Unable to load this year’s cash flow.');
     } finally {
-      setLoading(false);
+      if (request === monthlyRequest.current) setChartLoading(false);
     }
-  };
+  }, [year]);
 
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  useEffect(() => { fetchMonthly(); return () => { monthlyRequest.current += 1; }; }, [fetchMonthly]);
+
+  const refresh = () => { fetchDashboard(); fetchMonthly(); };
+  const openTransaction = (tx = null) => { setEditingTx(tx); setIsModalOpen(true); };
   const handleDelete = async () => {
-    if (!deleteId) return;
     setDeleteLoading(true);
-    try {
-      await api.delete(`/transactions/${deleteId}`);
-      setDeleteId(null);
-      fetchDashboardData();
-    } catch (err) {
-      console.error('Failed to delete transaction', err);
-    } finally {
-      setDeleteLoading(false);
-    }
+    setDeleteError('');
+    try { await api.delete(`/transactions/${deleteId}`); setDeleteId(null); refresh(); }
+    catch (err) { setDeleteError(err.response?.data?.message || 'Unable to delete this transaction.'); }
+    finally { setDeleteLoading(false); }
   };
 
-  // Bar Chart Configuration
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const barChartConfig = {
+  const barData = {
     labels: monthNames,
     datasets: [
-      {
-        label: 'Income',
-        data: monthlyChartData.map((d) => d.income),
-        backgroundColor: '#525252',
-        borderRadius: 3,
-      },
-      {
-        label: 'Expense',
-        data: monthlyChartData.map((d) => d.expense),
-        backgroundColor: '#171717',
-        borderRadius: 3,
-      },
+      { label: 'Income', data: monthlyData.map((row) => row.income), backgroundColor: incomeColor, borderRadius: 4, maxBarThickness: 14, categoryPercentage: 0.65 },
+      { label: 'Expenses', data: monthlyData.map((row) => row.expense), backgroundColor: expenseColor, borderRadius: 4, maxBarThickness: 14, categoryPercentage: 0.65 },
     ],
   };
-
-  // Doughnut Chart Configuration
-  const categoryColors = [
-    '#171717', '#404040', '#737373', '#a3a3a3', '#d4d4d4',
-    '#262626', '#525252', '#8a8a8a', '#bdbdbd', '#e5e5e5'
-  ];
-  const doughnutChartConfig = {
-    labels: categoryChartData.map((c) => c.category_name),
-    datasets: [
-      {
-        data: categoryChartData.map((c) => c.total),
-        backgroundColor: categoryColors,
-        borderWidth: 2,
-        borderColor: '#ffffff',
-      },
-    ],
-  };
+  const categoryTotal = categoryData.reduce((total, category) => total + Number(category.total), 0);
+  const doughnutData = { labels: categoryData.map((row) => row.category_name), datasets: [{ data: categoryData.map((row) => row.total), backgroundColor: chartColors, borderWidth: 3, borderColor: '#fff', borderRadius: 3, hoverOffset: 4 }] };
+  const hasMonthlyData = monthlyData.some((row) => row.income > 0 || row.expense > 0);
+  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Top Action Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-brand-900 dark:text-white">Dashboard</h2>
-            <p className="text-sm text-stone-600 dark:text-stone-400">This month · {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+      <div className="page-stack">
+        <PageHeader title={`${greeting}, ${user?.full_name?.trim().split(/\s+/)[0] || 'there'}`} description="Here’s the big picture. A little clarity goes a long way.">
+          <button type="button" onClick={() => openTransaction()} className="btn-primary"><Plus className="h-4 w-4" />Add transaction</button>
+        </PageHeader>
+
+        {error && <Alert><div className="flex flex-wrap items-center justify-between gap-2">{error}<button onClick={refresh} className="inline-flex items-center gap-1.5 font-semibold underline"><RefreshCw className="h-3.5 w-3.5" />Retry</button></div></Alert>}
+
+        <section aria-label="Financial summary" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          <div className="balance-pattern relative col-span-2 overflow-hidden rounded-2xl bg-brand-900 p-5 text-white shadow-card sm:col-span-1 lg:p-6">
+            <div className="relative z-10 flex items-center justify-between"><span className="text-xs font-medium text-brand-100/80">Total balance</span><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10"><Wallet className="h-[18px] w-[18px] text-brand-200" /></span></div>
+            <p className="amount relative z-10 mt-5 truncate text-[27px] font-bold leading-tight tracking-[-0.045em]" title={formatAmount(summary.current_balance)}>{loading ? <span className="block h-8 w-32 animate-pulse rounded-lg bg-white/10" /> : error ? '—' : formatAmount(summary.current_balance)}</p>
+            <div className="relative z-10 mt-5 flex items-center gap-1.5 border-t border-white/10 pt-3.5 text-[10px] text-brand-200"><span className="h-1.5 w-1.5 rounded-full bg-accent-400" />All-time income minus expenses</div>
           </div>
-          <button
-            onClick={() => { setEditingTx(null); setIsTxModalOpen(true); }}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-black hover:bg-stone-800 text-white font-semibold rounded-md transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add transaction</span>
-          </button>
+          {[
+            { title: 'Total income', value: formatAmount(summary.total_income), icon: ArrowDownLeft, color: 'bg-brand-50 text-brand-600', note: 'All-time money in', dot: 'bg-brand-500' },
+            { title: 'Total expenses', value: formatAmount(summary.total_expenses), icon: ArrowUpRight, color: 'bg-orange-50 text-orange-500', note: 'All-time money out', dot: 'bg-orange-400' },
+            { title: 'Transactions', value: summary.total_transactions.toLocaleString(), icon: Receipt, color: 'bg-blue-50 text-blue-500', note: 'Your activity, organized', dot: 'bg-blue-400' },
+          ].map(({ title, value, icon: Icon, color, note, dot }, index) => (
+            <div key={title} className={`surface p-4 sm:p-5 lg:p-6 ${index === 2 ? 'hidden sm:block' : ''}`}><div className="flex items-center justify-between gap-1"><span className="text-[10px] font-medium text-slate-500 sm:text-xs">{title}</span><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 sm:rounded-xl ${color}`}><Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" /></span></div><p className="amount mt-4 break-words text-[clamp(1rem,5vw,1.25rem)] font-bold leading-tight tracking-[-0.045em] text-slate-800 sm:mt-5 sm:text-[27px]" title={String(value)}>{loading ? <span className="block h-8 w-24 animate-pulse rounded-lg bg-slate-100 sm:w-32" /> : error ? '—' : value}</p><p className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3 text-[9px] text-slate-400 sm:mt-5 sm:pt-3.5 sm:text-[10px]"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />{note}</p></div>
+          ))}
+        </section>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+          <section className="surface">
+            <div className="surface-header border-0 pb-2">
+              <div><h2 className="section-title">Cash flow</h2><p className="section-description">A month-by-month look at money in and out.</p></div>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5"><CalendarDays className="h-3.5 w-3.5 text-slate-400" /><select aria-label="Cash flow year" value={year} onChange={(event) => setYear(Number(event.target.value))} className="rounded bg-white pr-1 text-xs font-medium text-slate-600 outline-none">{Array.from({ length: 6 }, (_, index) => currentYear - index).map((value) => <option key={value}>{value}</option>)}</select></div>
+            </div>
+            <div className="flex gap-5 px-5 pb-1 pt-3 text-[10px] text-slate-500 sm:px-6"><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-brand-600" />Income</span><span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-accent-500" />Expenses</span></div>
+            <div className="h-[285px] px-3 pb-4 pt-4 sm:px-5">
+              {chartLoading ? <LoadingState label="Loading cash flow…" /> : chartError ? <EmptyState title="Cash flow unavailable" description={chartError} compact><button onClick={fetchMonthly} className="text-link">Try again <RefreshCw className="h-3.5 w-3.5" /></button></EmptyState> : hasMonthlyData ? <Bar data={barData} options={cartesianOptions(formatAmount)} role="img" aria-label={`Monthly income and expenses for ${year}`} /> : <EmptyState icon={BarChart3} title="Your story starts with a transaction" description={`Add income or expenses dated in ${year} to see your cash flow here.`} compact><button onClick={() => openTransaction()} className="text-link">Add a transaction <ArrowRight className="h-3.5 w-3.5" /></button></EmptyState>}
+            </div>
+          </section>
+
+          <section className="surface">
+            <div className="surface-header border-0 pb-2"><div><h2 className="section-title">Spending breakdown</h2><p className="section-description">Where your money goes · All time</p></div><Link to="/reports" className="icon-button h-8 w-8" aria-label="View spending reports"><ArrowUpRight className="h-4 w-4" /></Link></div>
+            {loading ? <LoadingState label="Loading your categories…" /> : categoryTotal > 0 ? (
+              <div className="px-5 pb-5 sm:px-6">
+                <div className="relative mx-auto my-3 h-[170px] max-w-[200px]"><Doughnut data={doughnutData} options={doughnutOptions(formatAmount)} role="img" aria-label="Expenses by category" /><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><span className="text-[10px] text-slate-400">Total spent</span><span className="amount mt-1 max-w-[125px] truncate text-lg font-bold text-slate-800" title={formatAmount(categoryTotal)}>{formatAmount(categoryTotal)}</span></div></div>
+                <div className="space-y-2.5">{categoryData.slice(0, 3).map((category, index) => <div key={category.category_name} className="flex items-center gap-2 text-[11px]"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: chartColors[index] }} /><span className="min-w-0 flex-1 truncate text-slate-500">{category.category_name}</span><span className="amount font-semibold text-slate-700">{formatAmount(category.total)}</span><span className="w-9 text-right text-slate-400">{Math.round(category.total / categoryTotal * 100)}%</span></div>)}</div>
+                {categoryData.length > 3 && <Link to="/reports" className="text-link mt-3">View all {categoryData.length} categories <ArrowRight className="h-3 w-3" /></Link>}
+              </div>
+            ) : <EmptyState icon={Receipt} title={error ? 'Breakdown unavailable' : 'A clearer picture is on its way'} description={error ? 'Retry loading your overview to see your categories.' : 'Your expense categories will appear here as you track your spending.'} />}
+          </section>
         </div>
 
-        {/* 4 Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Balance */}
-          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Current Balance</span>
-              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400">
-                <Wallet className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <h3 className={`text-2xl font-extrabold ${summary.current_balance >= 0 ? 'text-brand-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}`}>
-                {formatAmount(summary.current_balance)}
-              </h3>
-              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">Balance after expenses</p>
-            </div>
-          </div>
-
-          {/* Income */}
-          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Total Income</span>
-              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <h3 className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatAmount(summary.total_income)}
-              </h3>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center">
-                <ArrowUpRight className="w-4 h-4 mr-0.5" /> Income this month
-              </p>
-            </div>
-          </div>
-
-          {/* Expenses */}
-          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Total Expenses</span>
-              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400">
-                <TrendingDown className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <h3 className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">
-                {formatAmount(summary.total_expenses)}
-              </h3>
-              <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 flex items-center">
-                <ArrowDownRight className="w-4 h-4 mr-0.5" /> Expenses this month
-              </p>
-            </div>
-          </div>
-
-          {/* Total Transactions */}
-          <div className="p-5 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase text-brand-500 dark:text-brand-400">Transactions</span>
-              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400">
-                <Receipt className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="mt-4">
-              <h3 className="text-2xl font-extrabold text-brand-900 dark:text-white">
-                {summary.total_transactions}
-              </h3>
-              <p className="text-xs text-brand-500 dark:text-brand-400 mt-1">{summary.total_transactions} recorded</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Monthly Bar Chart (2 cols) */}
-          <div className="lg:col-span-2 p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
-            <h3 className="text-lg font-bold text-brand-900 dark:text-white mb-4">Monthly Income vs Expense</h3>
-            <div className="h-72">
-              <Bar
-                data={barChartConfig}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: { legend: { position: 'top' } }
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Category Pie/Doughnut Chart (1 col) */}
-          <div className="p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm flex flex-col">
-            <h3 className="text-lg font-bold text-brand-900 dark:text-white mb-4">Expense by Category</h3>
-            <div className="h-64 flex items-center justify-center relative">
-              {categoryChartData.length > 0 ? (
-                <Doughnut
-                  data={doughnutChartConfig}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                  }}
-                />
-              ) : (
-                <div className="text-center text-brand-400 text-sm">No expense data available</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Transactions List */}
-        <div className="p-6 rounded-lg bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-brand-900 dark:text-white">Recent Transactions</h3>
-            <a href="/transactions" className="text-sm font-semibold text-brand-600 dark:text-brand-400 hover:underline">
-              View All
-            </a>
-          </div>
-
-          {recentTransactions.length === 0 ? (
-            <div className="py-12 text-center text-brand-500 dark:text-brand-400">
-              <p className="font-semibold text-brand-900 dark:text-white">No transactions yet</p>
-              <p className="mt-1">Add your first transaction to start tracking your spending.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-brand-100 dark:border-brand-700 text-xs font-semibold uppercase text-brand-400">
-                    <th className="py-3 px-4">Transaction</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-100 dark:divide-brand-700/50 text-sm">
-                  {recentTransactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-brand-50/50 dark:hover:bg-brand-700/30 transition-colors">
-                      <td className="py-3 px-4 font-medium text-brand-900 dark:text-white">
-                        {tx.description}
-                      </td>
-                      <td className="py-3 px-4 text-brand-600 dark:text-brand-300">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-brand-100 dark:bg-brand-700 text-brand-700 dark:text-brand-300">
-                          {tx.category_name}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-brand-500 dark:text-brand-400 text-xs">
-                        {tx.transaction_date}
-                      </td>
-                      <td className={`py-3 px-4 text-right font-bold ${tx.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        {tx.type === 'Income' ? '+' : '-'}{formatAmount(tx.amount)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => { setEditingTx(tx); setIsTxModalOpen(true); }}
-                            className="p-1.5 rounded-lg text-brand-400 hover:text-brand-600 hover:bg-brand-100 dark:hover:bg-brand-700"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(tx.id)}
-                            className="p-1.5 rounded-lg text-brand-400 hover:text-rose-600 hover:bg-brand-100 dark:hover:bg-brand-700"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Transaction Modal */}
-        <TransactionModal
-          isOpen={isTxModalOpen}
-          onClose={() => setIsTxModalOpen(false)}
-          onSuccess={fetchDashboardData}
-          initialData={editingTx}
-        />
-
-        {/* Delete Confirmation Modal */}
-        <ConfirmModal
-          isOpen={!!deleteId}
-          onClose={() => setDeleteId(null)}
-          onConfirm={handleDelete}
-          loading={deleteLoading}
-          title="Delete Transaction"
-          message="Are you sure you want to delete this transaction? This action cannot be undone."
-        />
+        <section className="surface overflow-hidden">
+          <div className="surface-header"><div className="flex items-center gap-2.5"><h2 className="section-title">Recent transactions</h2>{!loading && <span className="badge-neutral">{summary.total_transactions}</span>}</div><Link to="/transactions" className="text-link">View all transactions <ArrowRight className="h-3.5 w-3.5" /></Link></div>
+          {loading ? <LoadingState label="Loading recent activity…" /> : error ? <EmptyState title="Recent activity unavailable" description="Try loading your overview again." /> : transactions.length ? <TransactionList transactions={transactions} onEdit={openTransaction} onDelete={(id) => { setDeleteError(''); setDeleteId(id); }} /> : <EmptyState icon={Receipt} title="Make your first money move" description="Track an expense or add your income. Your recent activity will live here."><button onClick={() => openTransaction()} className="btn-primary"><Plus className="h-4 w-4" />Add your first transaction</button></EmptyState>}
+        </section>
+        <p className="text-center text-[10px] text-slate-400">A little awareness today. More confidence tomorrow.</p>
       </div>
+      <TransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={refresh} initialData={editingTx} />
+      <ConfirmModal isOpen={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete} loading={deleteLoading} error={deleteError} title="Delete transaction?" message="This transaction will be removed from your activity and financial totals. This cannot be undone." />
     </MainLayout>
   );
 };

@@ -1,96 +1,48 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { ArrowUpRight, ChevronLeft, ChevronRight, LogOut, Sprout } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import {
-  LayoutDashboard,
-  Receipt,
-  Tag,
-  Target,
-  BarChart3,
-  User,
-  Settings,
-  ShieldCheck,
-  LogOut,
-  Wallet,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import Brand from './Brand';
+import { mainNavigation, accountNavigation, adminNavigation } from './navigation';
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const accountItems = [...accountNavigation, ...(user?.is_admin ? [adminNavigation] : [])];
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Transactions', path: '/transactions', icon: Receipt },
-    { name: 'Categories', path: '/categories', icon: Tag },
-    { name: 'Budgets', path: '/budgets', icon: Target },
-    { name: 'Reports', path: '/reports', icon: BarChart3 },
-    { name: 'Profile', path: '/profile', icon: User },
-    { name: 'Settings', path: '/settings', icon: Settings },
-    ...(user?.is_admin ? [{ name: 'Admin', path: '/admin', icon: ShieldCheck }] : []),
-  ];
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const renderLink = ({ name, path, icon: Icon }) => (
+    <NavLink key={path} to={path} end={path === '/'} title={collapsed ? name : undefined} aria-label={collapsed ? name : undefined} className={({ isActive }) => `group flex min-h-11 items-center rounded-xl text-[13px] transition duration-150 ${collapsed ? 'justify-center px-2' : 'gap-3 px-3.5'} ${isActive ? 'bg-brand-600 font-semibold text-white shadow-sm' : 'font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+      <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={1.8} />
+      {!collapsed && <span className="truncate">{name}</span>}
+    </NavLink>
+  );
 
   return (
-    <aside className={`hidden md:flex flex-col bg-white dark:bg-brand-800 border-r border-brand-200 dark:border-brand-700 transition-all duration-300 z-30 h-screen sticky top-0 ${collapsed ? 'w-20' : 'w-64'}`}>
-      {/* Brand Header */}
-      <div className="flex items-center justify-between p-4 border-b border-brand-100 dark:border-brand-700">
-        <div className="flex items-center space-x-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center text-white shrink-0">
-            <Wallet className="w-5 h-5" />
-          </div>
-          {!collapsed && (
-            <span className="font-bold text-lg text-stone-900 dark:text-white truncate tracking-tight">
-              Expense<span className="text-stone-500 dark:text-stone-300">Pro</span>
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg text-black hover:bg-stone-100 dark:text-white dark:hover:bg-stone-800 transition-colors"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-        </button>
+    <aside className={`relative z-30 hidden h-full shrink-0 flex-col border-r border-slate-200/80 bg-white transition-[width] duration-200 md:flex ${collapsed ? 'w-20' : 'w-[244px]'}`}>
+      <div className={`flex h-20 shrink-0 items-center ${collapsed ? 'justify-center' : 'px-6'}`}><Brand compact={collapsed} /></div>
+      <div className={`flex-1 overflow-y-auto ${collapsed ? 'px-3' : 'px-4'}`}>
+        <nav aria-label="Main navigation" className="pt-5">
+          {!collapsed && <p className="eyebrow mb-4 px-3.5">Workspace</p>}
+          <div className="space-y-1.5">{mainNavigation.map(renderLink)}</div>
+        </nav>
+        <nav aria-label="Account navigation" className="mt-8">
+          {!collapsed && <p className="eyebrow mb-4 px-3.5">Account</p>}
+          <div className="space-y-1.5">{accountItems.map(renderLink)}</div>
+        </nav>
       </div>
-
-      {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-3 py-3 rounded-xl transition-all duration-200 group ${isActive
-                  ? 'bg-stone-100 dark:bg-stone-800 text-black dark:text-white font-semibold shadow-sm'
-                  : 'text-black dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-black dark:hover:text-white'
-                }`
-              }
-              title={collapsed ? item.name : ''}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span className="truncate">{item.name}</span>}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer / Logout */}
-      <div className="p-3 border-t border-brand-100 dark:border-brand-700 space-y-2">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-          title="Logout"
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="font-medium">Logout</span>}
+      {!collapsed && (
+        <Link to="/budgets" className="group mx-5 mb-5 mt-6 rounded-xl border border-brand-100 bg-brand-50/80 p-4 transition hover:bg-brand-100/70">
+          <div className="mb-3 flex items-center justify-between text-brand-600"><Sprout className="h-5 w-5" /><ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></div>
+          <p className="text-xs font-bold text-brand-900">Small steps. Better habits.</p>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-brand-700/80">Give every peso a purpose with a monthly budget.</p>
+        </Link>
+      )}
+      <div className={`flex shrink-0 items-center border-t border-slate-100 p-3 ${collapsed ? 'flex-col gap-1' : 'justify-between'}`}>
+        <button type="button" onClick={() => { logout(); navigate('/login'); }} className={`flex min-h-10 items-center gap-3 rounded-xl px-3 text-xs font-medium text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 ${collapsed ? 'w-full justify-center' : ''}`} title="Sign out" aria-label="Sign out">
+          <LogOut className="h-[18px] w-[18px]" />{!collapsed && 'Sign out'}
+        </button>
+        <button type="button" onClick={() => setCollapsed(!collapsed)} className="icon-button h-8 w-8" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
     </aside>

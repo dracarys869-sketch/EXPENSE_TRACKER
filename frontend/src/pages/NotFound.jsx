@@ -1,36 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileQuestion, Home } from 'lucide-react';
+import { ArrowLeft, Compass } from 'lucide-react';
+import Brand from '../components/Brand';
 
-const NotFound = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-100 p-6 text-center">
-      <div className="max-w-md space-y-5">
-        <div className="w-16 h-16 bg-white border border-stone-200 text-stone-400 rounded-2xl flex items-center justify-center mx-auto">
-          <FileQuestion className="w-8 h-8" />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight">Page not found</h1>
-        <p className="text-sm text-stone-600">
-          This page doesn't exist or was moved.
-        </p>
-        <div className="flex items-center justify-center gap-3">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-green-800 hover:bg-green-900 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            <Home className="w-4 h-4" />
-            <span>Back home</span>
-          </Link>
-          <Link
-            to="/welcome"
-            className="px-5 py-2.5 bg-white border border-stone-300 hover:border-stone-400 text-sm font-semibold rounded-lg transition-colors"
-          >
-            About
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-};
+const NotFound = () => (
+  <div className="flex min-h-screen flex-col bg-[#fafbf9]">
+    <header className="mx-auto w-full max-w-6xl px-6 py-6"><Brand to="/" /></header>
+    <main className="flex flex-1 flex-col items-center justify-center px-6 pb-20 text-center"><span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-500"><Compass className="h-8 w-8" strokeWidth={1.5} /></span><p className="eyebrow mt-7 text-brand-600">Error 404</p><h1 className="mt-3 text-4xl font-extrabold tracking-[-0.045em] text-slate-900">A little off the map.</h1><p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-500">We couldn’t find that page. Let’s get you back to a clearer picture.</p><Link to="/" className="btn-primary mt-7"><ArrowLeft className="h-4 w-4" />Back to your workspace</Link></main>
+  </div>
+);
 
 export default NotFound;

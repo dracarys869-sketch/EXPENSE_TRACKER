@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { createContext, useContext, useState } from 'react';
+import api, { getApiErrorMessage } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true, user: userData };
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed. Please check credentials.';
+      const message = getApiErrorMessage(err, 'Unable to sign in. Please try again.');
       return { success: false, message };
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       return { success: true, user: userData };
     } catch (err) {
-      const message = err.response?.data?.message || 'Registration failed.';
+      const message = getApiErrorMessage(err, 'Registration failed.');
       return { success: false, message };
     } finally {
       setLoading(false);

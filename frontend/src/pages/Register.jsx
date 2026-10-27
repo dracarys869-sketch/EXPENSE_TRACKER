@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Check, Loader2, Mail, Sprout, User } from 'lucide-react';
+import AuthLayout from '../layouts/AuthLayout';
+import PasswordInput from '../components/PasswordInput';
+import { Alert } from '../components/Feedback';
 import { useAuth } from '../context/AuthContext';
-import { Wallet, Mail, Lock, User, AlertCircle } from 'lucide-react';
 
 const Register = () => {
   const [fullName, setFullName] = useState('');
@@ -12,135 +15,29 @@ const Register = () => {
   const { register, loading } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!fullName || !email || !password || !confirmPassword) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
-    const result = await register(fullName, email, password, confirmPassword);
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message);
-    }
+  const handleSubmit = async (event) => {
+    event.preventDefault(); setError('');
+    if (!fullName.trim()) { setError('Please enter your full name.'); return; }
+    if (password !== confirmPassword) { setError('Your passwords don’t match. Please try again.'); return; }
+    if (password.length < 6) { setError('Your password needs at least 6 characters.'); return; }
+    const result = await register(fullName.trim(), email.trim(), password, confirmPassword);
+    if (result.success) navigate('/');
+    else setError(result.message);
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
-      <header className="bg-white border-b border-stone-200">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/welcome" className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-800 text-white">
-              <Wallet className="h-5 w-5" />
-            </span>
-            <span className="text-lg font-bold tracking-tight">ExpenseTracker</span>
-          </Link>
-          <p className="text-sm text-stone-600">
-            Have an account?{' '}
-            <Link to="/login" className="font-semibold text-green-800 hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-md px-6 py-10 md:py-14">
-        <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
-          <p className="mt-1.5 text-sm text-stone-600">Takes less than a minute.</p>
-
-          {error && (
-            <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-800">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-stone-700">Full name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Juan Dela Cruz"
-                  className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm outline-none focus:border-green-800 focus:ring-2 focus:ring-green-800/15 transition"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-stone-700">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm outline-none focus:border-green-800 focus:ring-2 focus:ring-green-800/15 transition"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-stone-700">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min. 6 characters"
-                    className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-stone-300 bg-white text-sm outline-none focus:border-green-800 focus:ring-2 focus:ring-green-800/15 transition"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-stone-700">Confirm</label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat password"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-white text-sm outline-none focus:border-green-800 focus:ring-2 focus:ring-green-800/15 transition"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-green-800 py-2.5 text-sm font-semibold text-white hover:bg-green-900 transition disabled:opacity-50"
-            >
-              {loading ? 'Creating account…' : 'Create account'}
-            </button>
-          </form>
-        </div>
-      </main>
-    </div>
+    <AuthLayout register>
+      <div className="mb-7"><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-brand-600"><Sprout className="h-5 w-5" /></div><h1 className="text-[30px] font-extrabold tracking-[-0.045em] text-slate-900">Start a good habit.</h1><p className="mt-2.5 text-[13px] leading-relaxed text-slate-500">Create your account. A little financial clarity awaits.</p></div>
+      {error && <div className="mb-5"><Alert>{error}</Alert></div>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div><label htmlFor="register-name" className="field-label">Full name</label><div className="relative"><User className="input-icon" /><input id="register-name" type="text" autoComplete="name" required value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Juan Dela Cruz" className="input pl-11" /></div></div>
+        <div><label htmlFor="register-email" className="field-label">Email address</label><div className="relative"><Mail className="input-icon" /><input id="register-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className="input pl-11" /></div></div>
+        <div><label htmlFor="register-password" className="field-label">Password</label><PasswordInput id="register-password" autoComplete="new-password" required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Create a password" /><p className={`mt-2 flex items-center gap-1 text-[10px] ${password.length >= 6 ? 'text-brand-600' : 'text-slate-400'}`}>{password.length >= 6 && <Check className="h-3 w-3" />}At least 6 characters</p></div>
+        <div><label htmlFor="register-confirm" className="field-label">Confirm password</label><PasswordInput id="register-confirm" autoComplete="new-password" required minLength={6} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Re-enter your password" /></div>
+        <div className="pt-2"><button type="submit" disabled={loading} className="btn-primary min-h-12 w-full">{loading && <Loader2 className="h-4 w-4 animate-spin" />}{loading ? 'Creating your account…' : 'Create your free account'}{!loading && <ArrowRight className="h-4 w-4" />}</button></div>
+        <p className="text-center text-xs text-slate-500">Already part of the picture? <Link to="/login" className="font-bold text-brand-700 hover:underline">Sign in</Link></p>
+      </form>
+    </AuthLayout>
   );
 };
 

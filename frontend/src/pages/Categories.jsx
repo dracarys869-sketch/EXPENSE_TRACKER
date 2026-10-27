@@ -1,234 +1,85 @@
 import React, { useState, useEffect } from 'react';
+import { Tag, Plus, Pencil, Trash2, ArrowDownLeft, ArrowUpRight, Check, Loader2, LockKeyhole } from 'lucide-react';
 import MainLayout from '../layouts/MainLayout';
-import api from '../services/api';
+import PageHeader from '../components/PageHeader';
+import CategoryIcon from '../components/CategoryIcon';
+import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
-import { Tag, Plus, Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { Alert, EmptyState, LoadingState } from '../components/Feedback';
+import api from '../services/api';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [categoryName, setCategoryName] = useState('');
   const [type, setType] = useState('Expense');
   const [editingCategory, setEditingCategory] = useState(null);
   const [error, setError] = useState('');
-
-  // Delete modal
+  const [pageError, setPageError] = useState('');
   const [deleteId, setDeleteId] = useState(null);
   const [deleteError, setDeleteError] = useState('');
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/categories');
-      setCategories(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setPageError('');
+    try { const response = await api.get('/categories'); setCategories(response.data); }
+    catch { setPageError('Unable to load your categories. Please try again.'); }
+    finally { setLoading(false); }
   };
+  useEffect(() => { fetchCategories(); }, []);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!categoryName.trim()) {
-      setError('Category name is required.');
-      return;
-    }
-
-    try {
-      if (editingCategory) {
-        await api.put(`/categories/${editingCategory.id}`, { category_name: categoryName.trim() });
-      } else {
-        await api.post('/categories', { category_name: categoryName.trim(), type });
-      }
-      setIsModalOpen(false);
-      fetchCategories();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save category.');
-    }
+  const openCategory = (category = null) => {
+    setEditingCategory(category); setCategoryName(category?.category_name || ''); setType(category?.type || 'Expense'); setError(''); setIsModalOpen(true);
   };
-
+  const handleSave = async (event) => {
+    event.preventDefault(); setError('');
+    if (!categoryName.trim()) { setError('Enter a name for your category.'); return; }
+    setSaving(true);
+    try {
+      if (editingCategory) await api.put(`/categories/${editingCategory.id}`, { category_name: categoryName.trim() });
+      else await api.post('/categories', { category_name: categoryName.trim(), type });
+      setIsModalOpen(false); fetchCategories();
+    } catch (err) { setError(err.response?.data?.message || 'Unable to save this category.'); }
+    finally { setSaving(false); }
+  };
   const handleDelete = async () => {
-    if (!deleteId) return;
-    setDeleteError('');
-    try {
-      await api.delete(`/categories/${deleteId}`);
-      setDeleteId(null);
-      fetchCategories();
-    } catch (err) {
-      setDeleteError(err.response?.data?.message || 'Cannot delete category in use.');
-    }
+    setDeleteError(''); setDeleteLoading(true);
+    try { await api.delete(`/categories/${deleteId}`); setDeleteId(null); fetchCategories(); }
+    catch (err) { setDeleteError(err.response?.data?.message || 'This category is in use and cannot be deleted.'); }
+    finally { setDeleteLoading(false); }
   };
-
-  const incomeCategories = categories.filter((c) => c.type === 'Income');
-  const expenseCategories = categories.filter((c) => c.type === 'Expense');
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-brand-900 dark:text-white">Categories</h2>
-            <p className="text-sm text-brand-500 dark:text-brand-400">Manage transaction income and expense classifications</p>
-          </div>
-          <button
-            onClick={() => { setEditingCategory(null); setCategoryName(''); setType('Expense'); setError(''); setIsModalOpen(true); }}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Custom Category</span>
-          </button>
+      <div className="page-stack">
+        <PageHeader title="Categories" description="A place for every transaction. Organize your money your way."><button onClick={() => openCategory()} className="btn-primary"><Plus className="h-4 w-4" />Add category</button></PageHeader>
+        {pageError && <Alert>{pageError} <button onClick={fetchCategories} className="font-semibold underline">Try again</button></Alert>}
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+          {['Expense', 'Income'].map((categoryType) => {
+            const group = categories.filter((category) => category.type === categoryType);
+            const isIncome = categoryType === 'Income';
+            const Icon = isIncome ? ArrowDownLeft : ArrowUpRight;
+            return (
+              <section key={categoryType} className="surface overflow-hidden">
+                <div className="surface-header"><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${isIncome ? 'bg-brand-50 text-brand-600' : 'bg-orange-50 text-orange-500'}`}><Icon className="h-5 w-5" /></span><div><h2 className="section-title">{isIncome ? 'Income' : 'Expenses'}</h2><p className="section-description">{isIncome ? 'The ways money comes in.' : 'The things you spend on.'}</p></div></div><span className="badge-neutral">{group.length} {group.length === 1 ? 'category' : 'categories'}</span></div>
+                {loading ? <LoadingState label="Loading categories…" /> : group.length ? <ul className="divide-y divide-slate-100 px-5 sm:px-6">{group.map((category) => <li key={category.id} className="flex items-center justify-between gap-3 py-4"><div className="flex min-w-0 items-center gap-3"><CategoryIcon name={category.category_name} type={category.type} /><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-700">{category.category_name}</p><p className="mt-1 text-[10px] text-slate-400">{category.user_id ? 'Custom category' : 'Built-in category'}</p></div></div>{category.user_id ? <div className="flex shrink-0 items-center"><button onClick={() => openCategory(category)} className="icon-button h-9 w-9" aria-label={`Rename ${category.category_name}`} title="Rename category"><Pencil className="h-3.5 w-3.5" /></button><button onClick={() => { setDeleteError(''); setDeleteId(category.id); }} className="icon-button h-9 w-9 hover:bg-rose-50 hover:text-rose-500" aria-label={`Delete ${category.category_name}`} title="Delete category"><Trash2 className="h-3.5 w-3.5" /></button></div> : <span className="badge-neutral"><LockKeyhole className="h-3 w-3" />Default</span>}</li>)}</ul> : <EmptyState icon={Tag} title={`No ${categoryType.toLowerCase()} categories yet`} description="Create a category that fits your everyday life." />}
+              </section>
+            );
+          })}
         </div>
-
-        {deleteError && (
-          <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm flex justify-between items-center">
-            <span>{deleteError}</span>
-            <button onClick={() => setDeleteError('')} className="text-rose-500 hover:text-rose-700"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Income Categories */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
-            <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mb-4 flex items-center">
-              <Tag className="w-5 h-5 mr-2" /> Income Categories
-            </h3>
-            <div className="space-y-2">
-              {incomeCategories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl bg-brand-50 dark:bg-brand-700/50 hover:bg-brand-100/80 transition-colors">
-                  <span className="font-medium text-brand-800 dark:text-brand-200 text-sm">{cat.category_name}</span>
-                  {cat.user_id ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => { setEditingCategory(cat); setCategoryName(cat.category_name); setType(cat.type); setIsModalOpen(true); }}
-                        className="p-1 text-brand-400 hover:text-brand-600"
-                        title="Rename"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(cat.id)}
-                        className="p-1 text-brand-400 hover:text-rose-600"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-brand-400 font-medium px-2 py-0.5 rounded bg-brand-200 dark:bg-brand-600">Default</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Expense Categories */}
-          <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
-            <h3 className="text-lg font-bold text-rose-600 dark:text-rose-400 mb-4 flex items-center">
-              <Tag className="w-5 h-5 mr-2" /> Expense Categories
-            </h3>
-            <div className="space-y-2">
-              {expenseCategories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl bg-brand-50 dark:bg-brand-700/50 hover:bg-brand-100/80 transition-colors">
-                  <span className="font-medium text-brand-800 dark:text-brand-200 text-sm">{cat.category_name}</span>
-                  {cat.user_id ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => { setEditingCategory(cat); setCategoryName(cat.category_name); setType(cat.type); setIsModalOpen(true); }}
-                        className="p-1 text-brand-400 hover:text-brand-600"
-                        title="Rename"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(cat.id)}
-                        className="p-1 text-brand-400 hover:text-rose-600"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-brand-400 font-medium px-2 py-0.5 rounded bg-brand-200 dark:bg-brand-600">Default</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Add/Edit Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-900/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-brand-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg text-brand-900 dark:text-white">
-                  {editingCategory ? 'Rename Category' : 'Add Custom Category'}
-                </h3>
-                <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5 text-brand-400" /></button>
-              </div>
-
-              {error && <p className="text-xs text-rose-500 mb-3">{error}</p>}
-
-              <form onSubmit={handleSave} className="space-y-4">
-                {!editingCategory && (
-                  <div>
-                    <label className="block text-xs font-semibold text-brand-500 mb-1">Type</label>
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-brand-100 dark:bg-brand-700 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setType('Expense')}
-                        className={`py-1.5 text-xs font-semibold rounded-lg ${type === 'Expense' ? 'bg-rose-500 text-white' : 'text-brand-600 dark:text-brand-300'}`}
-                      >
-                        Expense
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setType('Income')}
-                        className={`py-1.5 text-xs font-semibold rounded-lg ${type === 'Income' ? 'bg-emerald-500 text-white' : 'text-brand-600 dark:text-brand-300'}`}
-                      >
-                        Income
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-brand-500 mb-1">Category Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={categoryName}
-                    onChange={(e) => setCategoryName(e.target.value)}
-                    placeholder="e.g. Subscriptions"
-                    className="w-full px-3 py-2 rounded-xl border border-brand-300 dark:border-brand-600 dark:bg-brand-700 text-sm outline-none"
-                  />
-                </div>
-
-                <div className="flex space-x-2 pt-2">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-1/2 py-2 rounded-xl border text-sm font-semibold">Cancel</button>
-                  <button type="submit" className="w-1/2 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold">Save</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        <ConfirmModal
-          isOpen={!!deleteId}
-          onClose={() => setDeleteId(null)}
-          onConfirm={handleDelete}
-          title="Delete Category"
-          message="Are you sure you want to delete this custom category?"
-        />
+        <p className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-400"><LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" />Built-in categories keep things simple. Add your own for the things that make your budget unique.</p>
       </div>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Rename category' : 'Create a category'} description="Make your transactions easier to find and understand." size="sm" busy={saving}>
+        <form onSubmit={handleSave} className="space-y-5">
+          {error && <Alert>{error}</Alert>}
+          {!editingCategory && <div><label className="field-label">Transaction type</label><div className="segmented-control grid grid-cols-2" role="group" aria-label="Category transaction type">{['Expense', 'Income'].map((value) => <button type="button" key={value} disabled={saving} onClick={() => setType(value)} className="segmented-option" aria-pressed={type === value}>{value}</button>)}</div></div>}
+          <div><label htmlFor="category-name" className="field-label">Category name</label><input id="category-name" data-autofocus required maxLength={80} disabled={saving} value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="e.g. Coffee & little treats" className="input" /></div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-5"><button type="button" disabled={saving} onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button><button type="submit" disabled={saving} className="btn-primary">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{saving ? 'Saving…' : 'Save category'}</button></div>
+        </form>
+      </Modal>
+      <ConfirmModal isOpen={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete} loading={deleteLoading} error={deleteError} title="Delete category?" message="This custom category will be removed. Categories linked to transactions cannot be deleted." />
     </MainLayout>
   );
 };

@@ -1,325 +1,110 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, SlidersHorizontal, Plus, ChevronLeft, ChevronRight, Receipt, X } from 'lucide-react';
 import MainLayout from '../layouts/MainLayout';
-import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
+import PageHeader from '../components/PageHeader';
 import TransactionModal from '../components/TransactionModal';
 import ConfirmModal from '../components/ConfirmModal';
-import {
-  Search,
-  Filter,
-  Plus,
-  Trash2,
-  Edit2,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Calendar
-} from 'lucide-react';
+import TransactionList from '../components/TransactionList';
+import { Alert, EmptyState, LoadingState } from '../components/Feedback';
+import api from '../services/api';
 
 const Transactions = () => {
-  const { formatAmount } = useTheme();
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Filters & Pagination State
+  const [error, setError] = useState('');
+  const [categoryError, setCategoryError] = useState('');
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [type, setType] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
-  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const requestId = useRef(0);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [search, typeFilter, categoryFilter, startDate, endDate, sortBy, page]);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await api.get('/categories');
-      setCategories(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+  const fetchCategories = () => {
+    setCategoryError('');
+    api.get('/categories').then((response) => setCategories(response.data)).catch(() => setCategoryError('Category filters couldn’t be loaded. Your transactions are still available.'));
   };
 
-  const fetchTransactions = async () => {
+  useEffect(() => { fetchCategories(); }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  const fetchTransactions = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
+    setError('');
     try {
-      const params = new URLSearchParams({
-        page,
-        per_page: 10,
-        sort_by: sortBy,
-      });
+      const params = { page, per_page: 10, sort_by: sortBy, search: debouncedSearch || undefined, type: type || undefined, category_id: categoryId || undefined, start_date: startDate || undefined, end_date: endDate || undefined };
+      const response = await api.get('/transactions', { params });
+      if (currentRequest !== requestId.current) return;
+      const pages = Math.max(1, response.data.pages);
+      if (page > pages) { setPage(pages); return; }
+      setTransactions(response.data.transactions);
+      setTotalPages(pages);
+      setTotalCount(response.data.total);
+    } catch { if (currentRequest === requestId.current) setError('We couldn’t load your transactions. Please try again.'); }
+    finally { if (currentRequest === requestId.current) setLoading(false); }
+  }, [page, sortBy, debouncedSearch, type, categoryId, startDate, endDate]);
 
-      if (search) params.append('search', search);
-      if (typeFilter) params.append('type', typeFilter);
-      if (categoryFilter) params.append('category_id', categoryFilter);
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
+  useEffect(() => { fetchTransactions(); return () => { requestId.current += 1; }; }, [fetchTransactions]);
 
-      const res = await api.get(`/transactions?${params.toString()}`);
-      setTransactions(res.data.transactions);
-      setTotalPages(res.data.pages);
-      setTotalCount(res.data.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const clearFilters = () => { setSearch(''); setDebouncedSearch(''); setType(''); setCategoryId(''); setStartDate(''); setEndDate(''); setSortBy('newest'); setPage(1); };
+  const openTransaction = (tx = null) => { setEditingTx(tx); setIsModalOpen(true); };
   const handleDelete = async () => {
-    if (!deleteId) return;
     setDeleteLoading(true);
-    try {
-      await api.delete(`/transactions/${deleteId}`);
-      setDeleteId(null);
-      fetchTransactions();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setDeleteLoading(false);
-    }
+    setDeleteError('');
+    try { await api.delete(`/transactions/${deleteId}`); setDeleteId(null); fetchTransactions(); }
+    catch (err) { setDeleteError(err.response?.data?.message || 'Unable to delete this transaction.'); }
+    finally { setDeleteLoading(false); }
   };
-
-  const clearFilters = () => {
-    setSearch('');
-    setTypeFilter('');
-    setCategoryFilter('');
-    setStartDate('');
-    setEndDate('');
-    setSortBy('newest');
-    setPage(1);
-  };
+  const activeFilters = [categoryId, startDate, endDate].filter(Boolean).length;
+  const hasFilters = Boolean(search || type || activeFilters || sortBy !== 'newest');
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-brand-900 dark:text-white">Transactions</h2>
-            <p className="text-sm text-brand-500 dark:text-brand-400">Manage and filter your income & expenses</p>
+      <div className="page-stack">
+        <PageHeader title="Transactions" description="Every little expense. Every bit of income. All in one place."><button onClick={() => openTransaction()} className="btn-primary"><Plus className="h-4 w-4" />Add transaction</button></PageHeader>
+        {categoryError && <Alert>{categoryError} <button onClick={fetchCategories} className="font-semibold underline">Retry categories</button></Alert>}
+        <section className="surface overflow-hidden" aria-label="Transaction activity">
+          <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center sm:p-6">
+            <div className="segmented-control self-start" role="group" aria-label="Transaction type filter">
+              {[['', 'All transactions'], ['Income', 'Income'], ['Expense', 'Expenses']].map(([value, label]) => <button key={value} onClick={() => { setType(value); setCategoryId(''); setPage(1); }} className="segmented-option px-3 sm:px-3.5" aria-pressed={type === value}><span className="sm:hidden">{value ? label : 'All'}</span><span className="hidden sm:inline">{label}</span></button>)}
+            </div>
+            <div className="flex flex-1 items-center gap-2 lg:max-w-md">
+              <div className="relative min-w-0 flex-1"><Search className="input-icon" /><input aria-label="Search transactions" type="search" placeholder="Search…" value={search} onChange={(event) => setSearch(event.target.value)} className="input pl-11" /></div>
+              <button onClick={() => setFiltersOpen(!filtersOpen)} aria-label="Toggle transaction filters" aria-expanded={filtersOpen} aria-controls="transaction-filters" className={`btn-secondary ${filtersOpen ? 'border-brand-200 bg-brand-50 text-brand-700' : ''}`}><SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Filters</span>{activeFilters > 0 && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-600 text-[9px] text-white">{activeFilters}</span>}</button>
+            </div>
           </div>
-          <button
-            onClick={() => { setEditingTx(null); setIsModalOpen(true); }}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Transaction</span>
-          </button>
-        </div>
-
-        {/* Filter Controls Bar */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-400" />
-              <input
-                type="text"
-                placeholder="Search description..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
-              />
-            </div>
-
-            {/* Type Filter */}
-            <select
-              value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
-            >
-              <option value="">All Types (Income & Expense)</option>
-              <option value="Income">Income Only</option>
-              <option value="Expense">Expense Only</option>
-            </select>
-
-            {/* Category Filter */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.category_name} ({c.type})
-                </option>
-              ))}
-            </select>
-
-            {/* Sort Options */}
-            <select
-              value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
-              className="w-full px-3 py-2 text-sm rounded-xl border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
-            >
-              <option value="newest">Sort by Newest</option>
-              <option value="oldest">Sort by Oldest</option>
-              <option value="highest">Sort by Highest Amount</option>
-              <option value="lowest">Sort by Lowest Amount</option>
-            </select>
-          </div>
-
-          {/* Date Range & Clear Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-100 dark:border-brand-700/50">
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="text-brand-500">Date Range:</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                className="px-2.5 py-1.5 rounded-lg border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white"
-              />
-              <span className="text-brand-400">to</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                className="px-2.5 py-1.5 rounded-lg border border-brand-200 dark:border-brand-700 dark:bg-brand-900 dark:text-white"
-              />
-            </div>
-
-            <button
-              onClick={clearFilters}
-              className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
-            >
-              Reset Filters
-            </button>
-          </div>
-        </div>
-
-        {/* Transactions Table */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-brand-800 border border-brand-100 dark:border-brand-700 shadow-sm">
-          {loading ? (
-            <div className="py-12 flex justify-center">
-              <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : transactions.length === 0 ? (
-            <div className="py-12 text-center text-brand-500 dark:text-brand-400">
-              No transactions match your query filters.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-brand-100 dark:border-brand-700 text-xs font-semibold uppercase text-brand-400">
-                    <th className="py-3 px-4">Description</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-100 dark:divide-brand-700/50 text-sm">
-                  {transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-brand-50/50 dark:hover:bg-brand-700/30 transition-colors">
-                      <td className="py-3 px-4 font-medium text-brand-900 dark:text-white">
-                        {tx.description}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${tx.type === 'Income'
-                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
-                          }`}>
-                          {tx.type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-brand-600 dark:text-brand-300">
-                        {tx.category_name}
-                      </td>
-                      <td className="py-3 px-4 text-brand-500 dark:text-brand-400 text-xs">
-                        {tx.transaction_date}
-                      </td>
-                      <td className={`py-3 px-4 text-right font-bold ${tx.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        {tx.type === 'Income' ? '+' : '-'}{formatAmount(tx.amount)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => { setEditingTx(tx); setIsModalOpen(true); }}
-                            className="p-1.5 rounded-lg text-brand-400 hover:text-brand-600 hover:bg-brand-100 dark:hover:bg-brand-700"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(tx.id)}
-                            className="p-1.5 rounded-lg text-brand-400 hover:text-rose-600 hover:bg-brand-100 dark:hover:bg-brand-700"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {filtersOpen && (
+            <div id="transaction-filters" className="grid grid-cols-1 gap-4 border-b border-slate-100 bg-slate-50/60 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+              <div><label htmlFor="filter-category" className="field-label">Category</label><select id="filter-category" value={categoryId} disabled={Boolean(categoryError)} onChange={(event) => { setCategoryId(event.target.value); setPage(1); }} className="input"><option value="">All categories</option>{categories.filter((category) => !type || category.type === type).map((category) => <option key={category.id} value={category.id}>{category.category_name}</option>)}</select></div>
+              <div><label htmlFor="filter-start" className="field-label">From</label><input id="filter-start" type="date" value={startDate} max={endDate || undefined} onChange={(event) => { setStartDate(event.target.value); setPage(1); }} className="input" /></div>
+              <div><label htmlFor="filter-end" className="field-label">To</label><input id="filter-end" type="date" value={endDate} min={startDate || undefined} onChange={(event) => { setEndDate(event.target.value); setPage(1); }} className="input" /></div>
+              <div><label htmlFor="filter-sort" className="field-label">Sort by</label><select id="filter-sort" value={sortBy} onChange={(event) => { setSortBy(event.target.value); setPage(1); }} className="input"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest amount</option><option value="lowest">Lowest amount</option></select></div>
             </div>
           )}
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 mt-4 border-t border-brand-100 dark:border-brand-700">
-              <span className="text-xs text-brand-500 dark:text-brand-400">
-                Page {page} of {totalPages} ({totalCount} items)
-              </span>
-              <div className="flex space-x-2">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="p-2 rounded-lg border border-brand-200 dark:border-brand-700 text-brand-600 dark:text-brand-300 disabled:opacity-40"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-2 rounded-lg border border-brand-200 dark:border-brand-700 text-brand-600 dark:text-brand-300 disabled:opacity-40"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal Dialogs */}
-        <TransactionModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSuccess={fetchTransactions}
-          initialData={editingTx}
-        />
-
-        <ConfirmModal
-          isOpen={!!deleteId}
-          onClose={() => setDeleteId(null)}
-          onConfirm={handleDelete}
-          loading={deleteLoading}
-          title="Delete Transaction"
-          message="Are you sure you want to delete this transaction?"
-        />
+          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 sm:px-6"><p className="text-xs text-slate-400" aria-live="polite">{loading ? 'Finding your transactions…' : <><span className="font-semibold text-slate-600">{totalCount}</span> {totalCount === 1 ? 'transaction' : 'transactions'}{hasFilters ? ' found' : ' in your history'}</>}</p>{hasFilters && <button onClick={clearFilters} className="text-link"><X className="h-3 w-3" />Clear filters</button>}</div>
+          {error ? <div className="p-5"><Alert>{error} <button onClick={fetchTransactions} className="font-semibold underline">Try again</button></Alert></div> : loading ? <LoadingState label="Loading transactions…" /> : transactions.length ? <TransactionList transactions={transactions} onEdit={openTransaction} onDelete={(id) => { setDeleteError(''); setDeleteId(id); }} /> : <EmptyState icon={hasFilters ? Search : Receipt} title={hasFilters ? 'No matches this time' : 'Start your financial story'} description={hasFilters ? 'Try another search or adjust your filters to find what you’re looking for.' : 'Add your first transaction to start building a clearer picture of your money.'}>{hasFilters ? <button onClick={clearFilters} className="btn-secondary">Clear all filters</button> : <button onClick={() => openTransaction()} className="btn-primary"><Plus className="h-4 w-4" />Add a transaction</button>}</EmptyState>}
+          {!loading && !error && totalCount > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 sm:px-6"><p className="text-[11px] text-slate-400">Showing <span className="font-medium text-slate-600">{(page - 1) * 10 + 1}–{Math.min(page * 10, totalCount)}</span> of {totalCount}</p><div className="flex items-center gap-3"><button disabled={page === 1} onClick={() => setPage(page - 1)} className="icon-button h-8 w-8 border border-slate-200" aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button><span className="text-[11px] font-medium text-slate-500">{page} / {totalPages}</span><button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="icon-button h-8 w-8 border border-slate-200" aria-label="Next page"><ChevronRight className="h-4 w-4" /></button></div></div>}
+        </section>
       </div>
+      <TransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchTransactions} initialData={editingTx} />
+      <ConfirmModal isOpen={deleteId !== null} onClose={() => setDeleteId(null)} onConfirm={handleDelete} loading={deleteLoading} error={deleteError} title="Delete transaction?" message="This transaction will be removed from your activity and financial totals. This cannot be undone." />
     </MainLayout>
   );
 };

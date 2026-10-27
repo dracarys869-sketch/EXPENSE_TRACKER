@@ -2,6 +2,17 @@
 
 A full-stack, production-ready **Expense Tracker Application** built with **Python Django REST API** and **React.js / Vite Frontend**.
 
+## Saved Accounts
+
+The local database currently contains these accounts:
+
+| Name | Email | Role | Status |
+|------|-------|------|--------|
+| Expense Admin | `expenseadmin@gmail.com` | Administrator | Active | Admin123
+| Gian | `dracarys869@gmail.com` | User | Active | Gian_123
+
+Passwords are stored securely as hashes and are not included in this README.
+
 ## Project Structure
 
 ```text
@@ -37,10 +48,10 @@ frontend/
 
 4. Start the Django backend server:
    ```bash
-   python manage.py runserver 5000
+   python manage.py runserver
    # or simply: python app.py
    ```
-   The backend API will run on `http://127.0.0.1:5000`.
+   The backend API will run on `http://127.0.0.1:8000` with either command.
 
 ---
 
@@ -62,3 +73,11 @@ frontend/
    npm run dev
    ```
    The frontend app will open at `http://localhost:3000`.
+
+### 3. Starting Again Later
+
+Start `python manage.py runserver` from `backend` and `npm run dev` from `frontend`, then open `http://localhost:3000`. Keep both terminals running while using the app.
+
+The frontend forwards API requests to port **8000**, which matches Django's default and `python app.py`. If you deliberately use a different backend port, update the proxy target in `frontend/vite.config.js` to match.
+
+Accounts and expenses are saved in `backend/instance/expense_tracker.db` and remain available after closing and restarting the app.

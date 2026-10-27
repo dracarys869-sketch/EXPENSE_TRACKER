@@ -39,16 +39,11 @@ export const ThemeProvider = ({ children }) => {
   }, [isAuthenticated]);
 
   const updateSettings = async (newSettings) => {
+    if (isAuthenticated && !newSettings.theme) {
+      await api.put('/settings', newSettings);
+    }
     if (newSettings.currency) setCurrency(newSettings.currency);
     if (newSettings.date_format) setDateFormat(newSettings.date_format);
-
-    if (isAuthenticated && !newSettings.theme) {
-      try {
-        await api.put('/settings', newSettings);
-      } catch (err) {
-        console.error('Failed to sync settings with server', err);
-      }
-    }
   };
 
   const formatAmount = (amount) => {
